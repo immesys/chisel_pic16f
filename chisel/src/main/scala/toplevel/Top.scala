@@ -37,7 +37,7 @@ class Toplevel extends Module {
     val pch = UInt(8.W)
     val pcl = UInt(8.W)
   }
-  val pc = RegInit((new PCBundle).fromBits(0.U))
+  val pc = RegInit(0.U.asTypeOf(new PCBundle))
   val status = Reg(UInt(8.W))
   val fsr0 = Reg(new Bundle{
     val fsr0h = UInt(8.W)
@@ -131,10 +131,12 @@ class Toplevel extends Module {
   } .elsewhen (cycle === 2.U) {
 
     //instruction addr -> sram read addr
-    printf("cycle is 3, sigAddr is %x\n", signals.Address)
+    printf("cycle is 2, sigAddr is %x\n", signals.Address)
     raw_addr := signals.Address
   } .elsewhen (cycle === 3.U) {
+    printf("cycle is 3, bus_value is %x alu2 is %x\n", bus_value, alu2)
     raw_addr := signals.Address
+    bus_in_sel := bus_sram
     alu_res_reg := alu_res
     when (signals.SetFlags) {
       status := alu_status_res.asUInt
