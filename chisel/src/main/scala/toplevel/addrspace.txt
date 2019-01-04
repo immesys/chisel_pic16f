@@ -1,0 +1,19 @@
+0000 - 1000:  Primary RAM
+1000 - 1C00:  SFR space
+1C00 - 2000:  Core registers
+
+  1C00: INDF0
+  1C01: INDF1
+  1C02: PCL
+  1C03: STATUS
+  1C04: FSR0L
+  1C05: FSR0H
+  1C06: FSR1L
+  1C07: FSR1H
+  1C08: BSR
+  1C09: WREG
+  1C0A: PCLATH
+  1C0B: INTCON
+
+2000 - 4000:  Flash space
+4000 - X   :  Reserved

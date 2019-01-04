@@ -1,8 +1,9 @@
 package toplevel
 
 import chisel3._
-import chisel3.util.Enum
+import chisel3.util._
 import gcd.GCD
+import chisel3.util.experimental.loadMemoryFromFile
 
 class Toplevel extends Module {
   val io = IO(new Bundle {
@@ -12,6 +13,11 @@ class Toplevel extends Module {
     val pins_right_in  = Input(UInt(8.W))
     val pins_right_out = Output(UInt(8.W))
     val pins_right_en  = Output(UInt(8.W))
+
+    val flash_read_addr = Output(UInt(8.W))
+    val flash_read_val = Input(UInt(14.W))
+    val w = Output(UInt(8.W))
+    val pcl = Output(UInt(8.W))
   })
 
 
@@ -44,8 +50,12 @@ class Toplevel extends Module {
   val pclath = RegInit(0.U(8.W))
   val intcon = RegInit(0.U(8.W))
 
-  val bus_value = Wire(UInt(16.W))
+  io.w := wreg
+  io.pcl := pc.pcl
 
+  val bus_value = Wire(UInt(16.W))
+  //For saving the address across cycles
+  val addr = Reg(UInt(16.W))
 
   //Memory mapping
   val raw_addr = Wire(UInt(16.W))
@@ -56,8 +66,10 @@ class Toplevel extends Module {
   raw_addr := 0.U
 
   //Flash
-  val flash = SyncReadMem(4096, UInt(14.W))
-  val flash_read_val = flash.read(mapped_addr(12,0))
+  //val flash = SyncReadMem(4096, UInt(14.W))
+  //val flash_read_val = flash.read(mapped_addr(12,0))
+  val flash_read_val = io.flash_read_val
+  io.flash_read_addr := mapped_addr(12,0)
 
   //Flash testing
   val flash_write = Wire(Bool())
@@ -68,9 +80,11 @@ class Toplevel extends Module {
   flash_write_val := 0.U
 
   //Bus memory mux
-  val mem = SyncReadMem(4096, UInt(8.W))
+  val mem = Mem(4096, UInt(8.W))
+  loadMemoryFromFile(mem, "mem.txt")
+
   val sram_read_value = mem.read(mapped_addr(11,0))
-  val bus_zero :: bus_sram :: Nil = Enum(2)
+  val bus_zero :: bus_sram :: bus_alu :: Nil = Enum(3)
   val bus_in_sel = Wire(UInt(3.W))
   val bus_out_sel = Wire(UInt(3.W))
   val bus_write = Wire(Bool())
@@ -78,6 +92,16 @@ class Toplevel extends Module {
   bus_out_sel := bus_zero
   bus_write := false.B
   val cycle = Reg(UInt(4.W))
+  val alu_res_reg = Reg(UInt(8.W))
+  //Op decode
+  val opdecode = Module(new IDecode)
+  opdecode.io.instruction := instruction
+  val signals = opdecode.io.signals
+
+  //ALU
+  val alu1 = Wire(UInt(8.W))
+  val alu2 = Wire(UInt(8.W))
+  val alu_res = Wire(UInt(8.W))
 
   when (cycle === 4.U)
   {
@@ -88,41 +112,38 @@ class Toplevel extends Module {
 
   when (cycle === 0.U)
   {
-//    raw_addr := pc.asUInt
-//    val nextPC = pc.asUInt + 1.U
-//    pc.pch := nextPC(15,8)
-//    pc.pcl := nextPC(7,0)
-//    bus_value := DontCare
-//    addr := mapped_addr
-
-    //PC -> rawaddr
-    //mapped_addr -> addr reg
-    //            -> flash read addr
+      raw_addr := pc.asUInt
+      val nextPC = pc.asUInt + 1.U
+      pc.pch := nextPC(15,8)
+      pc.pcl := nextPC(7,0)
+      addr := mapped_addr
+      printf("cycle is 0, pc=%x (%x)\n", raw_addr, mapped_addr)
   } .elsewhen (cycle === 1.U) {
     //flash value -> instruction register
-
+    printf("cycle is 1, flashval = %x\n", flash_read_val)
+    instruction := flash_read_val
   } .elsewhen (cycle === 2.U) {
     //instruction addr -> sram read addr
-
-
-  } .elsewhen (cycle === 3.U)
+    printf("cycle is 3, sigAddr is %x\n", signals.Address)
+    raw_addr := signals.Address
+  } .elsewhen (cycle === 3.U) {
+    raw_addr := signals.Address
+    alu_res_reg := alu_res
+    when (signals.SetFlags) {
+      status := alu_status_res.asUInt
+    }
+  } .elsewhen (cycle === 4.U)
   {
-    //instruction operands -> alu registers
-    //ALU
-
-  }
-  .elsewhen (cycle === 4.U)
-  {
-    //Writeback
-    //alu writeback
-
-  }
-
-  //Flash memory
-
-  when (flash_write)
-  {
-    flash.write(flash_write_addr, flash_write_val)
+    raw_addr := signals.Address
+    when (signals.DestF) {
+      bus_in_sel := bus_alu
+      bus_out_sel := bus_sram
+      bus_write := true.B
+    } .otherwise {
+      bus_out_sel := bus_zero
+      bus_write := false.B
+      wreg := alu_res_reg
+    }
   }
 
 
@@ -177,6 +198,8 @@ class Toplevel extends Module {
     } .otherwise {
       bus_value := 0.U
     }
+  } .elsewhen (bus_in_sel === bus_alu) {
+    bus_value := alu_res_reg
   } .otherwise {
     bus_value := 0.U
   }
@@ -225,6 +248,89 @@ class Toplevel extends Module {
       intcon := bus_value
     } .otherwise {
       //Nothing
+    }
+  }
+
+  //ALU
+  val ( aAdd :: aAddWithCarry :: aAnd :: aRightShift :: aArithRightShift ::
+  aLeftShift :: aIdentity1 :: aIdentity2 ::
+  aInclOr ::
+  aRotateLeftCarry :: aRotateRightCarry ::
+  aSwapNibbles2 ::
+  aXor ::
+  aBitTestSet :: aBitTestClear :: Nil ) = Enum(15)
+  val srcBus :: srcLiteral :: srcW :: Nil = Enum(3)
+
+  when (signals.Complement1) {
+    alu1 := (-(wreg.asSInt)).asUInt
+  } .otherwise {
+    alu1 := wreg
+  }
+
+  when (signals.Source2 === srcBus) {
+    when (signals.Complement2) {
+      alu2 := (-(bus_value.asSInt)).asUInt
+    } .otherwise {
+      alu2 := bus_value
+    }
+  } .otherwise {
+    when (signals.Complement2) {
+      alu2 := (-(signals.Literal2.asSInt)).asUInt
+    } .otherwise {
+      alu2 := signals.Literal2
+    }
+  }
+
+  val alu_pre_res = Wire(UInt(9.W))
+  alu_res := alu_pre_res
+  val alu_status_res = Wire(new Status)
+  alu_status_res.Zero := alu_res === 0.U
+  alu_status_res.Carry := alu_pre_res(8) === 1.U
+  switch (signals.Operation) {
+    is (aAdd) {
+      alu_pre_res := alu1 + alu2
+    }
+    is (aAddWithCarry) {
+      alu_pre_res := alu1 + alu2 + status(0).asUInt
+    }
+    is (aAnd) {
+      alu_pre_res := alu1 & alu2
+    }
+    is (aRightShift) {
+      alu_pre_res := alu2 >> 1
+    }
+    is (aIdentity1) {
+      alu_pre_res := alu1
+    }
+    is (aIdentity2) {
+      alu_pre_res := alu2
+    }
+    is (aArithRightShift) {
+      alu_pre_res := alu2.asSInt >> 1
+    }
+    is (aLeftShift) {
+      alu_pre_res := alu2 << 1
+    }
+    is (aInclOr) {
+      alu_pre_res := alu1 | alu2
+    }
+    is (aRotateLeftCarry) {
+      alu_pre_res := Cat(alu2, status(0))
+    }
+    is (aRotateRightCarry) {
+      alu_pre_res := Cat(alu(0), status(0), alu2(7,1))
+    }
+    is (aSwapNibbles2) {
+      alu_pre_res := Cat(alu2(3,0), alu2(7,4))
+    }
+    is (aXor) {
+      alu_pre_res := alu1 ^ alu2
+    }
+    is (aBitTestSet) {
+      alu_pre_res := (alu1(alu2(3,0)) === 1.U).asUInt
+    }
+    is (aBitTestClear) {
+      alu_pre_res := (alu1(alu2(3,0)) === 0.U).asUInt
     }
   }
 }

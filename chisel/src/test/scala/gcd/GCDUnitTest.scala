@@ -35,6 +35,7 @@ class GCDUnitTester(c: GCD) extends PeekPokeTester(c) {
 
   for(i <- 1 to 40 by 3) {
     for (j <- 1 to 40 by 7) {
+      pokeAt(gcd.mem, 10, i)
       poke(gcd.io.value1, i)
       poke(gcd.io.value2, j)
       poke(gcd.io.loadingValues, 1)
