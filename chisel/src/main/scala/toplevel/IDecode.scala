@@ -51,10 +51,10 @@ class IDecode extends Module {
   io.signals.Address := io.instruction(6, 0)
   io.signals.Literal2 := 0.U
 
-  printf("instruction is %x\n", io.instruction)
+  //printf("instruction is %x\n", io.instruction)
   switch (io.instruction(13,8)) {
     is ("b0_00111".U) { //ADDWF
-      printf("decoded ADDWF\n")
+      //printf("decoded ADDWF\n")
       io.signals.Operation := aAdd
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -65,6 +65,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b11_1101".U) { //ADDWFC
+      print("decoded ADDWFC")
       io.signals.Operation := aAddWithCarry
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -75,6 +76,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b00_0101".U) { //ANDWF
+      print("decoded ANDWF\n")
       io.signals.Operation := aAnd
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -85,6 +87,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b11_0111".U) { //ASRF
+      print("decoded ASRF\n")
       io.signals.Operation := aArithRightShift
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -95,6 +98,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b11_0101".U) { //LSLF
+      //printf("decoded LSLF\n")
       io.signals.Operation := aLeftShift
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -105,6 +109,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b11_0110".U) { //LSRF
+      //printf("decoded LSRF\n")
       io.signals.Operation := aRightShift
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -115,6 +120,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b00_0001".U) { //CLRF + CLRW
+      //printf("decoded CLRF/W\n")
       io.signals.Operation := aIdentity2
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -126,6 +132,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b00_1001".U) { //COMF
+      //printf("decoded COMF\n")
       io.signals.Operation := aIdentity2
       io.signals.Complement1 := false.B
       io.signals.Complement2 := true.B
@@ -137,7 +144,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b00_0011".U) { //DECF
-      printf("decoded DECF")
+      //printf("decoded DECF\n")
       io.signals.Operation := aAdd
       io.signals.Complement1 := false.B
       io.signals.Complement2 := true.B
@@ -149,7 +156,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b00_1010".U) { //INCF
-      printf("decoded INCF")
+      //printf("decoded INCF\n")
       io.signals.Operation := aAdd
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -161,7 +168,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b00_0100".U) { //IORWF
-      printf("decoded IORWF")
+      //printf("decoded IORWF\n")
       io.signals.Operation := aInclOr
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -173,7 +180,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b00_1000".U) { //MOVF
-      printf("decoded MOVF")
+      //printf("decoded MOVF\n")
       io.signals.Operation := aIdentity2
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -184,8 +191,8 @@ class IDecode extends Module {
       io.signals.DestF := io.instruction(7) === 1.U
       io.signals.Address := io.instruction(6,0)
     }
-    is ("b00_1000".U) { //MOVWF
-      printf("decoded MOVWF")
+    is ("b00_0000".U) { //MOVWF
+      //printf("decoded MOVWF\n")
       io.signals.Operation := aIdentity1
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -197,7 +204,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b00_1101".U) { //RLF
-      printf("decoded RLF")
+      //printf("decoded RLF\n")
       io.signals.Operation := aRotateLeftCarry
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B
@@ -209,7 +216,7 @@ class IDecode extends Module {
       io.signals.Address := io.instruction(6,0)
     }
     is ("b00_1100".U) { //RRF
-      printf("decoded RRF")
+      //printf("decoded RRF\n")
       io.signals.Operation := aRotateRightCarry
       io.signals.Complement1 := false.B
       io.signals.Complement2 := false.B

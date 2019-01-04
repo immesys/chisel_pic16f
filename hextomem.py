@@ -8,6 +8,9 @@ dat = {}
 for l in hexf:
     ln = int(l[1:3],16)
     addr = int(l[3:7],16)
+    type = int(l[7:9],16)
+    if type != 0:
+        continue
     content = l[9:9+2*ln]
     for i in range(0, ln/2):
         wi = addr/2 + i

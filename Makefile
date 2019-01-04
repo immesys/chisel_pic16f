@@ -15,11 +15,12 @@ code:
 	./hextomem.py code/prog.hex code/prog.cmf > chisel/src/main/scala/toplevel/CompiledMem.scala
 
 testv:
-	cd chisel && sbt 'test:runMain toplevel.ToplevelMain --backend-name verilator'
+	cd chisel && sbt 'test:runMain toplevel.ToplevelMain --backend-name verilator --generate-vcd-output on'
 test:
-	cd chisel && sbt 'test:runMain toplevel.ToplevelMain'
+	cd chisel && sbt 'test:runMain toplevel.ToplevelMain --generate-vcd-output on'
 
 .PHONY: test
 .PHONY: chisel
 .PHONY: build
 .PHONY: prog
+.PHONY: code

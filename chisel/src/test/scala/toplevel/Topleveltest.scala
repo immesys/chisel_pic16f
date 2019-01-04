@@ -18,7 +18,7 @@ class ToplevelUnitTester(c: Toplevel) extends PeekPokeTester(c) {
 
   private val tl = c
 
-  val flashmem = CompiledMem.CMem
+  val flashmem = (new CompiledMem).CMem
 /*  val flashmem = Map(
     0 -> "b00_0011_0_000_1001".U.litValue //incf w
     1 -> "b00_0011_0_000_1001".U.litValue //incf w
@@ -31,12 +31,15 @@ class ToplevelUnitTester(c: Toplevel) extends PeekPokeTester(c) {
         case Some(result) => result
         case None => 0
       }
-    //  printf(p"poking flash $addr->$res")
+      Console.println(s"poking flash $addr->$res")
       poke(tl.io.flash_read_val, res)
+      var rega = peekAt(tl.mem, 36)
+      var regb = peekAt(tl.mem, 37)
+      Console.println(s"ram a=$rega b=$regb")
       step(1)
     }
   }
   reset(10)
-  gstep(6)
+  gstep(6*10)
   expect(tl.io.w, 1)
 }

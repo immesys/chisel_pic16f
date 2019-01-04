@@ -20,7 +20,7 @@ class MemoryMapper extends Module {
       io.mapped_addr := "h1C00".U | bank_addr
     } .elsewhen (bank_addr < "h70".U) {
       //Memory
-      //4.u is +16-12
+      //4.u is +16 (shared) -12 (core registers)
       io.mapped_addr := (bank_sel * 80.U) + 4.U + bank_addr
     } .otherwise {
       //Common registers

@@ -20,6 +20,7 @@ class Toplevel extends Module {
     val pcl = Output(UInt(8.W))
   })
 
+  val x = (new CompiledMem).CMem
 
   io.pins_right_out := "hFF".U;
   io.pins_right_en := "h00".U;
@@ -32,16 +33,17 @@ class Toplevel extends Module {
 
   var instruction = Reg(UInt(14.W))
 
-  var pc = Reg(new Bundle {
+  class PCBundle extends Bundle {
     val pch = UInt(8.W)
     val pcl = UInt(8.W)
-  })
-  var status = Reg(UInt(8.W))
-  var fsr0 = Reg(new Bundle{
+  }
+  val pc = RegInit((new PCBundle).fromBits(0.U))
+  val status = Reg(UInt(8.W))
+  val fsr0 = Reg(new Bundle{
     val fsr0h = UInt(8.W)
     val fsr0l = UInt(8.W)
   })
-  var fsr1 = Reg(new Bundle{
+  val fsr1 = Reg(new Bundle{
     val fsr1h = UInt(8.W)
     val fsr1l = UInt(8.W)
   })
@@ -63,7 +65,7 @@ class Toplevel extends Module {
   val mapper = Module(new MemoryMapper)
   mapped_addr := mapper.io.mapped_addr
   mapper.io.raw_addr := raw_addr
-  raw_addr := 0.U
+  raw_addr := 7.U
 
   //Flash
   //val flash = SyncReadMem(4096, UInt(14.W))
@@ -81,7 +83,6 @@ class Toplevel extends Module {
 
   //Bus memory mux
   val mem = Mem(4096, UInt(8.W))
-  loadMemoryFromFile(mem, "mem.txt")
 
   val sram_read_value = mem.read(mapped_addr(11,0))
   val bus_zero :: bus_sram :: bus_alu :: Nil = Enum(3)
@@ -102,6 +103,8 @@ class Toplevel extends Module {
   val alu1 = Wire(UInt(8.W))
   val alu2 = Wire(UInt(8.W))
   val alu_res = Wire(UInt(8.W))
+  val alu_pre_res = Wire(UInt(9.W))
+  val alu_status_res = Wire(new Status)
 
   when (cycle === 4.U)
   {
@@ -116,13 +119,17 @@ class Toplevel extends Module {
       val nextPC = pc.asUInt + 1.U
       pc.pch := nextPC(15,8)
       pc.pcl := nextPC(7,0)
-      addr := mapped_addr
+      addr := raw_addr
       printf("cycle is 0, pc=%x (%x)\n", raw_addr, mapped_addr)
   } .elsewhen (cycle === 1.U) {
+    //This might not be necessary, but it's needed for sim
+    raw_addr := addr
+
     //flash value -> instruction register
-    printf("cycle is 1, flashval = %x\n", flash_read_val)
+    printf("cycle is 1, flashval = %b\n", flash_read_val)
     instruction := flash_read_val
   } .elsewhen (cycle === 2.U) {
+
     //instruction addr -> sram read addr
     printf("cycle is 3, sigAddr is %x\n", signals.Address)
     raw_addr := signals.Address
@@ -144,6 +151,8 @@ class Toplevel extends Module {
       bus_write := false.B
       wreg := alu_res_reg
     }
+    printf("cy4 rawaddr=%x mapped=%x\n", raw_addr, mapped_addr)
+    printf("cycle is 4, wreg=%x (%b) df=%b\n", wreg, wreg, signals.DestF)
   }
 
 
@@ -208,6 +217,7 @@ class Toplevel extends Module {
   {
     when(mapped_addr < "h2000".U)
     {
+      printf("writing to memory addr=%x val=%x\n", mapped_addr(11,0), bus_value)
       mem.write(mapped_addr(11,0), bus_value)
     } .elsewhen(mapped_addr === "h1C00".U)
     {
@@ -281,14 +291,17 @@ class Toplevel extends Module {
     }
   }
 
-  val alu_pre_res = Wire(UInt(9.W))
+
   alu_res := alu_pre_res
-  val alu_status_res = Wire(new Status)
   alu_status_res.Zero := alu_res === 0.U
   alu_status_res.Carry := alu_pre_res(8) === 1.U
+  alu_status_res.Res := 0.U
+  alu_status_res.DigitCarry := false.B
+  alu_pre_res := 0.U
   switch (signals.Operation) {
     is (aAdd) {
       alu_pre_res := alu1 + alu2
+      printf("add alu1=%x alu2=%x\n", alu1, alu2)
     }
     is (aAddWithCarry) {
       alu_pre_res := alu1 + alu2 + status(0).asUInt
@@ -306,7 +319,7 @@ class Toplevel extends Module {
       alu_pre_res := alu2
     }
     is (aArithRightShift) {
-      alu_pre_res := alu2.asSInt >> 1
+      alu_pre_res := (alu2.asSInt >> 1).asUInt
     }
     is (aLeftShift) {
       alu_pre_res := alu2 << 1
@@ -318,7 +331,7 @@ class Toplevel extends Module {
       alu_pre_res := Cat(alu2, status(0))
     }
     is (aRotateRightCarry) {
-      alu_pre_res := Cat(alu(0), status(0), alu2(7,1))
+      alu_pre_res := Cat(alu2(0), status(0), alu2(7,1))
     }
     is (aSwapNibbles2) {
       alu_pre_res := Cat(alu2(3,0), alu2(7,4))
