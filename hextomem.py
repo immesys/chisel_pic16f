@@ -55,14 +55,17 @@ for l in lines:
         rlines[l[0]] = [ln]
     #rlines.append((l[0], ln))
 
-addrs = sorted(rlines.keys())
+addrs = sorted(dat.keys())
 
 print "package toplevel"
 print "import chisel3._"
 print "class CompiledMem {"
 print "     val CMem = Map("
 for i in addrs:
-    comments = rlines[i]
+    if i in rlines:
+        comments = rlines[i]
+    else:
+        comments = [" "]
     for k in range (0, len(comments)-1):
         print "        // %s" % comments[k]
     cma = ","

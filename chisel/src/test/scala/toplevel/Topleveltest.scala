@@ -34,12 +34,19 @@ class ToplevelUnitTester(c: Toplevel) extends PeekPokeTester(c) {
       Console.println(s"poking flash $addr->$res")
       poke(tl.io.flash_read_val, res)
       var rega = peekAt(tl.mem, 36)
-      var regb = peekAt(tl.mem, 37)
-      Console.println(s"ram a=$rega b=$regb")
+      var valuereg = peekAt(tl.mem, 37)
+      var expectreg = peekAt(tl.mem, 38)
+      var testreg = peekAt(tl.mem, 39)
+      Console.println(s"a=$rega v=$valuereg e=$expectreg t=$testreg")
+      if (testreg > 0) {
+        Console.println(s"PERFORMING TEST $expectreg == $valuereg")
+        expect(valuereg == expectreg, s"expected ${expectreg} got ${valuereg}")
+      }
+      //Console.println(s"ram a=$rega b=$regb")
       step(1)
     }
   }
   reset(10)
-  gstep(6*10)
-  expect(tl.io.w, 1)
+  gstep(6*51)
+  //expect(tl.io.w, 1)
 }

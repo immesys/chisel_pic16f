@@ -34,7 +34,7 @@ class Toplevel extends Module {
   var instruction = Reg(UInt(14.W))
 
   class PCBundle extends Bundle {
-    val pch = UInt(8.W)
+    val pch = UInt(7.W)
     val pcl = UInt(8.W)
   }
   val pc = RegInit(0.U.asTypeOf(new PCBundle))
@@ -115,12 +115,12 @@ class Toplevel extends Module {
 
   when (cycle === 0.U)
   {
-      raw_addr := pc.asUInt
+      raw_addr := Cat(1.U, pc.asUInt)
       val nextPC = pc.asUInt + 1.U
-      pc.pch := nextPC(15,8)
+      pc.pch := nextPC(14,8)
       pc.pcl := nextPC(7,0)
       addr := raw_addr
-      printf("cycle is 0, pc=%x (%x)\n", raw_addr, mapped_addr)
+      printf("cycle is 0, pc=%x (h%x ----------------- d%d)\n", raw_addr, mapped_addr, mapped_addr(11,0))
   } .elsewhen (cycle === 1.U) {
     //This might not be necessary, but it's needed for sim
     raw_addr := addr
@@ -132,15 +132,14 @@ class Toplevel extends Module {
 
     //instruction addr -> sram read addr
     printf("cycle is 2, sigAddr is %x\n", signals.Address)
+  //  bus_in_sel := bus_sram
     raw_addr := signals.Address
   } .elsewhen (cycle === 3.U) {
     printf("cycle is 3, bus_value is %x alu2 is %x\n", bus_value, alu2)
     raw_addr := signals.Address
     bus_in_sel := bus_sram
     alu_res_reg := alu_res
-    when (signals.SetFlags) {
-      status := alu_status_res.asUInt
-    }
+    status := alu_status_res.asUInt
   } .elsewhen (cycle === 4.U)
   {
     raw_addr := signals.Address
@@ -154,18 +153,18 @@ class Toplevel extends Module {
       wreg := alu_res_reg
     }
     printf("cy4 rawaddr=%x mapped=%x\n", raw_addr, mapped_addr)
-    printf("cycle is 4, wreg=%x (%b) df=%b\n", wreg, wreg, signals.DestF)
+    printf("cycle is 4, wreg=%x (%b) df=%b status=%b\n", wreg, wreg, signals.DestF, status)
   }
 
 
-  when (mapped_addr < "h2000".U && bus_write)
-  {
-    mem.write(mapped_addr(12,0), bus_value(7,0))
-  }
+//  when (mapped_addr < "h1000".U && bus_write)
+//  {
+//    mem.write(mapped_addr(11,0), bus_value(7,0))
+//  }
 
   when (bus_in_sel === bus_sram)
   {
-    when(mapped_addr < "h2000".U)
+    when(mapped_addr < "h1000".U)
     {
       bus_value := sram_read_value
     } .elsewhen(mapped_addr === "h1C00".U)
@@ -217,7 +216,7 @@ class Toplevel extends Module {
 
   when(bus_out_sel === bus_sram && bus_write)
   {
-    when(mapped_addr < "h2000".U)
+    when(mapped_addr < "h1000".U)
     {
       printf("writing to memory addr=%x val=%x\n", mapped_addr(11,0), bus_value)
       mem.write(mapped_addr(11,0), bus_value)
@@ -273,11 +272,21 @@ class Toplevel extends Module {
   aBitTestSet :: aBitTestClear :: Nil ) = Enum(15)
   val srcBus :: srcLiteral :: srcW :: Nil = Enum(3)
 
-  when (signals.Complement1) {
-    alu1 := (-(wreg.asSInt)).asUInt
+  when (signals.Source1 === srcW)
+  {
+    when (signals.Complement1) {
+      alu1 := (-(wreg.asSInt)).asUInt
+    } .otherwise {
+      alu1 := wreg
+    }
   } .otherwise {
-    alu1 := wreg
+    when (signals.Complement1) {
+      alu1 := (-(bus_value.asSInt)).asUInt
+    } .otherwise {
+      alu1 := bus_value
+    }
   }
+
 
   when (signals.Source2 === srcBus) {
     when (signals.Complement2) {
@@ -295,18 +304,26 @@ class Toplevel extends Module {
 
 
   alu_res := alu_pre_res
-  alu_status_res.Zero := alu_res === 0.U
-  alu_status_res.Carry := alu_pre_res(8) === 1.U
+  when (signals.SetZero) {
+    alu_status_res.Zero := alu_res === 0.U
+  } .otherwise {
+    alu_status_res.Zero := status(2)
+  }
+  when (signals.SetCarry) {
+    alu_status_res.Carry := alu_pre_res(8) === 1.U
+  } .otherwise {
+    alu_status_res.Carry := status(0)
+  }
   alu_status_res.Res := 0.U
   alu_status_res.DigitCarry := false.B
   alu_pre_res := 0.U
   switch (signals.Operation) {
     is (aAdd) {
-      alu_pre_res := alu1 + alu2
-      printf("add alu1=%x alu2=%x\n", alu1, alu2)
+      alu_pre_res := alu1 +& alu2
+      printf("add alu1=%x alu2=%x res=%x\n", alu1, alu2, alu_pre_res)
     }
     is (aAddWithCarry) {
-      alu_pre_res := alu1 + alu2 + status(0).asUInt
+      alu_pre_res := (alu1 +& alu2) + status(0).asUInt
     }
     is (aAnd) {
       alu_pre_res := alu1 & alu2

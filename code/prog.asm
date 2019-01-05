@@ -29,16 +29,66 @@ wreg equ 09h
 
 ; variables
 A equ 20h
-B equ 21h
+ValueReg equ 21h
+ExpectReg equ 22h
+TestReg equ 23h
+
+; Used for unit tests. Checks that W is equal to
+; the given value
+expect MACRO vv
+  movwf ValueReg
+  movlw vv
+  movwf ExpectReg
+  incf TestReg, f
+  clrf TestReg
+  movf ValueReg, w
+endm
 
 reset_vec:
-  ;expect w=1
+  ;test increment
+  clrw
   incf wreg, w
+  expect 1
+
+  ;test addwf
   movwf A
+  incf A, f
+  addwf A, w
+  expect 3
+
+  ;test clrf
+  clrf A
+  movf A, w
+  expect 0
+
+  ;test carry flag set
+  movlw 200
+  movwf A
+  addwf A, w
+  movf status, w
+  expect 1 ; carry set
+
+  ;test carry flag not changed
+  movlw 255
   incf wreg, w
+  movf status, w
+  expect 5 ;101 incf doesn't change carry
+
+  ;clear status
+  clrf status
+  movf status, w
+  expect 0
+
+  ;test zero flag + carry
+  movlw 255
   incf wreg, w
-  ;expect w = 4
-  incf wreg, w
-  movwf B
-  ;expect w = 8
-  addwf B, w
+  movf status, w
+  expect 4 ;100 incf doesn't set carry
+
+  ;test zero flag no carry
+  movlw 1
+  decf wreg, w
+  movf status, w
+  expect 4 ;100
+
+  
