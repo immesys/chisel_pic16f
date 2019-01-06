@@ -208,3 +208,167 @@ testpclwrite:
   expect 0
   movf status, w
   expect 4
+
+  ; test addlw
+  movlw 5
+  addlw 13
+  expect 18
+  movf status, w
+  expect 0
+  movlw 18
+  addlw 242
+  expect 4
+  movf status, w
+  expect 1
+
+  ; test iorlw
+  movlw 37
+  iorlw 7
+  expect 39
+
+  ; test andlw
+  movlw 37
+  andlw 15
+  expect 5
+
+  ; test sublw
+  movlw 10
+  sublw 11
+  expect 255
+  movf status, w
+  expect 0 ; borrow
+
+  ; test sublw no borrow
+  movlw 10
+  sublw 9
+  expect 1
+  movf status, w
+  expect 1 ; no borrow
+
+  ; clear carry
+  clrf status
+
+  ; test xorlw
+  movlw 55
+  xorlw 55
+  expect 0
+  movf status, w
+  expect 4
+
+  ; check xor no clear carry
+  movlw 1
+  movwf status
+
+  ; test xorlw
+  movlw 55
+  xorlw 37
+  expect 18
+  movf status, w
+  expect 1
+
+  ; test movlb
+  ; assuming this label is on second page
+  movlw 0x56
+  movwf B
+  movlp high testmovlb
+  movlw low testmovlb
+  movwf pcl
+  movlw 0x55
+  movwf B
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+testmovlb:
+  movf B, w
+  expect 0x56
+
+  ; test decfsz
+  movlw 3
+  movwf B
+  decfsz B, f
+  movlw 7
+  expect 7
+
+  ; test decfsz
+  movlw 1
+  movwf B
+  decfsz B, f
+  movlw 7
+  expect 1
+
+  ; test decfsz
+  movlw 1
+  movwf B
+  decfsz B, w
+  movlw 7
+  expect 0
+
+  ; test btfss
+  movlw 8
+  movwf B
+  btfss B, 3
+  movlw 15
+  expect 8
+
+  ; test btfss doesn't alter args
+  movlw 11
+  movwf B
+  btfss B, 7
+  nop
+  expect 11
+  movf B, w
+  expect 11
+
+  ; test btfss on W
+  movlw 8
+  btfss wreg, 1
+  movlw 15
+  expect 15
+
+  ; test btfss on W
+  movlw 8
+  btfss wreg, 3
+  movlw 15
+  expect 8
+
+  ; test btfsc on B
+  movlw 3
+  movwf B
+  btfsc B, 0
+  movlw 9
+  expect 9
+
+  ; test btfsc on B
+  movlw 3
+  movwf B
+  btfsc B, 3
+  movlw 9
+  expect 3
+
+  ; test btfsc on B
+  movlw 3
+  movwf B
+  clrf wreg ; check we aren't testing wreg
+  btfsc B, 0
+  movlw 9
+  expect 9
+
+  ; test bsf
+  clrf B
+  bsf B, 3
+  movf B, w
+  expect 8
+
+  ; test bcf
+  movlw 7
+  bcf wreg, 0
+  expect 6

@@ -49,7 +49,7 @@ class Toplevel extends Module {
   })
   val bsr = RegInit(0.U(8.W))
   val wreg = RegInit(0.U(8.W))
-  val pclath = RegInit(0.U(8.W))
+  val pclath = RegInit(0.U(7.W))
   val intcon = RegInit(0.U(8.W))
 
   io.w := wreg
@@ -83,7 +83,10 @@ class Toplevel extends Module {
 
   //Bus memory mux
   val mem = Mem(4096, UInt(8.W))
-
+  val stack = Module(new Stack)
+  stack.io.push := false.B
+  stack.io.pop := false.B
+  stack.io.push_addr := 0.U
   val sram_read_value = mem.read(mapped_addr(11,0))
   val bus_zero :: bus_sram :: bus_alu :: Nil = Enum(3)
   val bus_in_sel = Wire(UInt(3.W))
@@ -97,6 +100,7 @@ class Toplevel extends Module {
   //Op decode
   val opdecode = Module(new IDecode)
   opdecode.io.instruction := instruction
+  opdecode.io.pclath := pclath
   val signals = opdecode.io.signals
 
   //ALU
@@ -155,8 +159,32 @@ class Toplevel extends Module {
         wreg := alu_res_reg
       }
     }
+
+    when(signals.Push) {
+      stack.io.push_addr := pc.asUInt
+      stack.io.push := true.B
+    }
+
+    when(signals.Pop) {
+      pc.pcl := stack.io.tos(7,0)
+      pc.pch := stack.io.tos(14,8)
+      stack.io.pop := true.B
+    } .elsewhen (signals.SetPCAbs) {
+      pc.pcl := signals.PCAbsAddr(7,0)
+      pc.pch := signals.PCAbsAddr(14,8)
+    } .elsewhen (signals.AddPC ||
+                (signals.AddPCZero && alu_res_reg === 0.U) ||
+                (signals.AddPCNonzero && alu_res_reg =/= 0.U)) {
+      val pcu = Wire(UInt(16.W))
+      pcu := pc.asUInt
+      val nextPC = (pcu.asSInt + signals.PCAddAddr).asUInt
+      pc.pcl := nextPC(7,0)
+      pc.pch := nextPC(14,8)
+    }
+
+    printf("cy4 s=%x sz=%x snz=%x res=%x\n", signals.AddPC, signals.AddPCZero, signals.AddPCNonzero, alu_res_reg)
     printf("cy4 rawaddr=%x mapped=%x\n", raw_addr, mapped_addr)
-    printf("cycle is 4, wreg=%x (%b) df=%b status=%b\n", wreg, wreg, signals.DestF, status)
+    printf("cy4, wreg=%x (%b) df=%b status=%b\n", wreg, wreg, signals.DestF, status)
   }
 
 
@@ -231,6 +259,7 @@ class Toplevel extends Module {
       //Can't write to indf through fsr
     } .elsewhen(mapped_addr === "h1C02".U)
     {
+      printf("writing to pcl=%x and pclh=%x\n", bus_value, pclath)
       pc.pcl := bus_value
       pc.pch := pclath
     } .elsewhen(mapped_addr === "h1C03".U)

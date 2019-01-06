@@ -20,6 +20,14 @@ class ControlSignals extends Bundle {
   val SetCarry = Bool()
   val DestF = Bool()
   val WriteMem = Bool()
+  val Push = Bool()
+  val Pop = Bool()
+  val SetPCAbs = Bool()
+  val AddPCNonzero = Bool()
+  val AddPCZero = Bool()
+  val PCAbsAddr = UInt(15.W)
+  val AddPC = Bool()
+  val PCAddAddr = SInt(10.W)
 }
 
 class Status extends Bundle {
@@ -32,6 +40,7 @@ class Status extends Bundle {
 class IDecode extends Module {
   val io = IO(new Bundle {
     val instruction   = Input(UInt(14.W))
+    val pclath = Input(UInt(7.W))
     val signals = Output(new ControlSignals)
   })
   val ( aAdd :: aAddWithCarry :: aAnd :: aRightShift :: aArithRightShift ::
@@ -55,8 +64,17 @@ class IDecode extends Module {
   io.signals.Address := io.instruction(6, 0)
   io.signals.Literal2 := 0.U
   io.signals.WriteMem := true.B
-
+  io.signals.SetPCAbs := false.B
+  io.signals.AddPCNonzero := false.B
+  io.signals.AddPCZero := false.B
+  io.signals.PCAbsAddr := 0.U
+  io.signals.PCAddAddr := 0.S
+  io.signals.AddPC := false.B
+  io.signals.Pop := false.B
+  io.signals.Push := false.B
   val wreg_addr = 9.U
+  val bsr_addr = 8.U
+  val pclh_addr = 10.U
 
   //printf("instruction is %x\n", io.instruction)
   when (io.instruction(13,8) === "b0_00111".U) { //ADDWF
@@ -171,29 +189,131 @@ class IDecode extends Module {
       io.signals.Operation := aXor
       io.signals.SetZero := true.B
   }
-    //DECFSZ
-    //INCFSZ
-    //BCF
-    //BSF
-    //BTFSC
-    //BTFSS
-
-    //ADDLW
-    //ANDLW
-    //IORLW
-    //MOVLB
-    //MOVLP
+  .elsewhen (io.instruction(13,8) === "b00_1011".U) { //DECFSZ
+      //printf("decoded DECFSZ\n")
+      io.signals.Operation := aAdd
+      io.signals.Source1 := srcBus
+      io.signals.Source2 := srcLiteral
+      io.signals.Complement2 := true.B
+      io.signals.Literal2 := 1.U
+      io.signals.PCAddAddr := 1.S
+      io.signals.AddPCZero := true.B
+  }
+  .elsewhen (io.instruction(13,8) === "b00_1111".U) { //INCFSZ
+      //printf("decoded INCFSZ\n")
+      io.signals.Operation := aAdd
+      io.signals.Source1 := srcBus
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := 1.U
+      io.signals.PCAddAddr := 1.S
+      io.signals.AddPCZero := true.B
+  }
+  .elsewhen (io.instruction(13,10) === "b01_00".U) { //BCF
+      var bitnum = io.instruction(9,7)
+      var oh = UIntToOH(bitnum, 8)
+      io.signals.Operation := aAnd
+      io.signals.Source1 := srcBus
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := ~oh
+      io.signals.DestF := true.B
+  }
+  .elsewhen (io.instruction(13,10) === "b01_01".U) { //BSF
+      var bitnum = io.instruction(9,7)
+      var oh = UIntToOH(bitnum, 8)
+      io.signals.Operation := aInclOr
+      io.signals.Source1 := srcBus
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := oh
+      io.signals.DestF := true.B
+  }
+  .elsewhen (io.instruction(13,10) === "b01_10".U) { //BTFSC
+      var bitnum = io.instruction(9,7)
+      var oh = UIntToOH(bitnum, 8)
+      io.signals.Operation := aAnd
+      io.signals.Source1 := srcBus
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := oh
+      io.signals.WriteMem := false.B
+      io.signals.AddPCZero := true.B
+      io.signals.PCAddAddr := 1.S
+  }
+  .elsewhen (io.instruction(13,10) === "b01_11".U) { //BTFSS
+      var bitnum = io.instruction(9,7)
+      var oh = UIntToOH(bitnum, 8)
+      io.signals.Operation := aAnd
+      io.signals.Source1 := srcBus
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := oh
+      io.signals.WriteMem := false.B
+      io.signals.AddPCNonzero := true.B
+      io.signals.PCAddAddr := 1.S
+  }
+  .elsewhen (io.instruction(13,8) === "b11_1110".U) { //ADDLW
+      //printf("decoded ADDLW\n")
+      io.signals.Operation := aAdd
+      io.signals.SetZero := true.B
+      io.signals.SetCarry := true.B
+      io.signals.DestF := false.B
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := io.instruction(7,0)
+  }
+  .elsewhen (io.instruction(13,8) === "b11_1001".U) { //ANDLW
+      //printf("decoded ANDLW\n")
+      io.signals.Operation := aAnd
+      io.signals.SetZero := true.B
+      io.signals.DestF := false.B
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := io.instruction(7,0)
+  }
+  .elsewhen (io.instruction(13,8) === "b11_1000".U) { //IORLW
+      //printf("decoded IORLW\n")
+      io.signals.Operation := aInclOr
+      io.signals.SetZero := true.B
+      io.signals.DestF := false.B
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := io.instruction(7,0)
+  }
+  .elsewhen (io.instruction(13,8) === "b00_0001".U) { //MOVLB
+      //printf("decoded MOVLB\n")
+      io.signals.Operation := aIdentity2
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := io.instruction(7,0)
+      io.signals.DestF := true.B
+      io.signals.Address := bsr_addr
+  }
+  .elsewhen (io.instruction(13,8) === "b11_0001".U) { //MOVLP
+      //printf("decoded MOVLP\n")
+      io.signals.Operation := aIdentity2
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := io.instruction(7,0)
+      io.signals.DestF := true.B
+      io.signals.Address := pclh_addr
+  }
   .elsewhen (io.instruction(13,8) === "b11_0000".U) { //MOVLW
       //printf("decoded MOVLW\n")
       io.signals.Operation := aIdentity2
       io.signals.Source2 := srcLiteral
       io.signals.Literal2 := io.instruction(7,0)
-      io.signals.DestF := true.B
-      io.signals.Address := wreg_addr
+      io.signals.DestF := false.B
   }
-    //SUBLW
-    //XORLW
-
+  .elsewhen (io.instruction(13,8) === "b11_1100".U) { //SUBLW
+      //printf("decoded SUBLW\n")
+      io.signals.Operation := aAdd
+      io.signals.Complement2 := true.B
+      io.signals.SetZero := true.B
+      io.signals.SetCarry := true.B
+      io.signals.DestF := false.B
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := io.instruction(7,0)
+  }
+  .elsewhen (io.instruction(13,8) === "b11_1010".U) { //XORLW
+      //printf("decoded XORLW\n")
+      io.signals.Operation := aXor
+      io.signals.SetZero := true.B
+      io.signals.DestF := false.B
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := io.instruction(7,0)
+  }
     //BRA
     //BRW
     //CALL
