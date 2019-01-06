@@ -33,7 +33,7 @@ class MemoryMapper extends Module {
   }
   .otherwise
   {
-    //Flash
-    io.mapped_addr := "h2000".U + (io.raw_addr - "h8000".U)
+    //Flash (>8000)
+    io.mapped_addr := io.raw_addr
   }
 }

@@ -14,7 +14,7 @@ class Toplevel extends Module {
     val pins_right_out = Output(UInt(8.W))
     val pins_right_en  = Output(UInt(8.W))
 
-    val flash_read_addr = Output(UInt(8.W))
+    val flash_read_addr = Output(UInt(15.W))
     val flash_read_val = Input(UInt(14.W))
     val w = Output(UInt(8.W))
     val pcl = Output(UInt(8.W))
@@ -71,7 +71,7 @@ class Toplevel extends Module {
   //val flash = SyncReadMem(4096, UInt(14.W))
   //val flash_read_val = flash.read(mapped_addr(12,0))
   val flash_read_val = io.flash_read_val
-  io.flash_read_addr := mapped_addr(12,0)
+  io.flash_read_addr := mapped_addr(14,0)
 
   //Flash testing
   val flash_write = Wire(Bool())
@@ -120,7 +120,7 @@ class Toplevel extends Module {
       pc.pch := nextPC(14,8)
       pc.pcl := nextPC(7,0)
       addr := raw_addr
-      printf("cycle is 0, pc=%x (h%x ----------------- d%d)\n", raw_addr, mapped_addr, mapped_addr(11,0))
+      printf("cycle is 0, pc=%x (h%x ----------------- d%d)\n", raw_addr, mapped_addr(14,0), mapped_addr(14,0))
   } .elsewhen (cycle === 1.U) {
     //This might not be necessary, but it's needed for sim
     raw_addr := addr
@@ -287,7 +287,21 @@ class Toplevel extends Module {
     }
   }
 
+  val carryBorrow = Wire(UInt(8.W))
 
+  when (signals.Complement2 ^ signals.Complement1) {
+    when (status(0) === 0.U) {
+      carryBorrow := "hFF".U
+    } .otherwise {
+      carryBorrow := 0.U
+    }
+  } .otherwise {
+    when (status(0) === 0.U) {
+      carryBorrow := 0.U
+    } .otherwise {
+      carryBorrow := 1.U
+    }
+  }
   when (signals.Source2 === srcBus) {
     when (signals.Complement2) {
       alu2 := (-(bus_value.asSInt)).asUInt
@@ -323,7 +337,7 @@ class Toplevel extends Module {
       printf("add alu1=%x alu2=%x res=%x\n", alu1, alu2, alu_pre_res)
     }
     is (aAddWithCarry) {
-      alu_pre_res := (alu1 +& alu2) + status(0).asUInt
+      alu_pre_res := (alu1 +& alu2) + carryBorrow
     }
     is (aAnd) {
       alu_pre_res := alu1 & alu2

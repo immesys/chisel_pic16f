@@ -147,9 +147,24 @@ class IDecode extends Module {
       io.signals.Operation := aRotateRightCarry
       io.signals.SetCarry := true.B
     }
-    //SUBWF
-    //SUBWFB
-    //SWAPF
+    is ("b00_0010".U) { //SUBWF
+      //printf("decoded SUBWF\n")
+      io.signals.Operation := aAdd
+      io.signals.Complement1 := true.B
+      io.signals.SetCarry := true.B
+      io.signals.SetZero := true.B
+    }
+    is ("b11_1011".U) { //SUBWFB
+      //printf("decoded SUBWFB\n")
+      io.signals.Operation := aAddWithCarry
+      io.signals.Complement1 := true.B
+      io.signals.SetCarry := true.B
+      io.signals.SetZero := true.B
+    }
+    is ("b00_1110".U) { //SWAPF
+      //printf("decoded SWAPF\n")
+      io.signals.Operation := aSwapNibbles2
+    }
     //XORWF
     //DECFSZ
     //INCFSZ

@@ -32,6 +32,7 @@ A equ 20h
 ValueReg equ 21h
 ExpectReg equ 22h
 TestReg equ 23h
+B equ 24h
 
 ; Used for unit tests. Checks that W is equal to
 ; the given value
@@ -91,4 +92,102 @@ reset_vec:
   movf status, w
   expect 4 ;100
 
-  
+  ; test rrf
+  movlw 85
+  movwf A
+  rrf A, w
+  expect 42 ;
+  rrf wreg, w
+  expect 149 ; carry bit still set, rotate back in
+
+  ; test rlf
+  movlw 3
+  movwf status ; set carry bit
+  rlf A, w
+  expect 171 ; rotate carry bit in
+
+  ; test comf
+  comf wreg, w
+  expect 85
+
+  ; test shift no rotate
+  movlw 3
+  movwf status
+  lslf A, w
+  expect 170
+
+  ; test right shift no rotate
+  clrf status
+  lsrf A, w
+  expect 42
+  movwf status, w
+  expect 0
+
+  ; test SUBWF
+  movlw 84
+  subwf A, w
+  expect 1
+  movwf status, w
+  expect 1 ; no borrow
+
+  ; test SUBWF
+  movlw 86
+  subwf A, w
+  expect 255
+  movwf status, w
+  expect 0 ; borrow
+
+  ; test SUBWFB
+  clrf status ; clear BORROW
+  movlw 10
+  subwfb A, w
+  expect 74 ; 85-10-1 (borrow)
+
+  ; test SUBWFB no borrow
+  movlw 3
+  movwf status
+  movlw 10
+  subwfb A, w
+  expect 75 ; 85-10
+
+  ; test ADDWFC
+  clrf status ; clear carry
+  movlw 10
+  addwfc A, w
+  expect 95
+
+  ; check A is still 85
+  movf A, w
+  expect 85
+
+  ; test ADDWFC with carry
+  movlw 1
+  movwf status
+  movlw 10
+  addwfc A, w
+  expect 96
+
+  ; test swapf
+  movlw 0x35
+  swapf wreg, w
+  expect 0x53
+
+  ; test swapf register
+  movlw 0x45
+  movwf B
+  swapf B, f
+  clrf wreg
+  movf B, w
+  expect 0x54
+
+  ; test pcl write
+  movlw 0x30
+  movwf B
+  movlw low(testpclwrite)
+  movwf pcl
+  ; this should be skipped
+  movlw 0x35
+  movwf B
+testpclwrite:
+  movf B, w
+  expect 0x30

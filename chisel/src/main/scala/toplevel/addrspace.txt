@@ -15,5 +15,5 @@
   1C0A: PCLATH
   1C0B: INTCON
 
-2000 - 4000:  Flash space
-4000 - X   :  Reserved
+2000 - 8000:  Reserved
+8000 - FFFF:  Flash
