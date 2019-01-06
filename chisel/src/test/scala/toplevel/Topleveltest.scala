@@ -47,6 +47,6 @@ class ToplevelUnitTester(c: Toplevel) extends PeekPokeTester(c) {
     }
   }
   reset(10)
-  gstep(6*233)
+  gstep(6*271)
   //expect(tl.io.w, 1)
 }

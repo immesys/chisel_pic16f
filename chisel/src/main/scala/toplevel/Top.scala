@@ -135,7 +135,8 @@ class Toplevel extends Module {
   //  bus_in_sel := bus_sram
     raw_addr := signals.Address
   } .elsewhen (cycle === 3.U) {
-    printf("cycle is 3, bus_value is %x alu2 is %x\n", bus_value, alu2)
+    printf("cycle is 3, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
+    printf("alu op is %d\n", signals.Operation)
     raw_addr := signals.Address
     bus_in_sel := bus_sram
     alu_res_reg := alu_res
@@ -143,14 +144,16 @@ class Toplevel extends Module {
   } .elsewhen (cycle === 4.U)
   {
     raw_addr := signals.Address
-    when (signals.DestF) {
-      bus_in_sel := bus_alu
-      bus_out_sel := bus_sram
-      bus_write := true.B
-    } .otherwise {
-      bus_out_sel := bus_zero
-      bus_write := false.B
-      wreg := alu_res_reg
+    when (signals.WriteMem) {
+      when (signals.DestF) {
+        bus_in_sel := bus_alu
+        bus_out_sel := bus_sram
+        bus_write := true.B
+      } .otherwise {
+        bus_out_sel := bus_zero
+        bus_write := false.B
+        wreg := alu_res_reg
+      }
     }
     printf("cy4 rawaddr=%x mapped=%x\n", raw_addr, mapped_addr)
     printf("cycle is 4, wreg=%x (%b) df=%b status=%b\n", wreg, wreg, signals.DestF, status)
@@ -319,6 +322,7 @@ class Toplevel extends Module {
 
   alu_res := alu_pre_res
   when (signals.SetZero) {
+    printf("alu_res is %x\n", alu_res)
     alu_status_res.Zero := alu_res === 0.U
   } .otherwise {
     alu_status_res.Zero := status(2)

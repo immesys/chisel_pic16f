@@ -191,3 +191,20 @@ reset_vec:
 testpclwrite:
   movf B, w
   expect 0x30
+
+  ; test nop works
+  movlw 0x41
+  nop
+  expect 0x41
+
+  ; test xor
+  movlw 0xff
+  xorwf A, w
+  expect 170
+  movf status, w
+  expect 0
+  movf A, w
+  xorwf A, w
+  expect 0
+  movf status, w
+  expect 4

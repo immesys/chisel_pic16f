@@ -19,6 +19,7 @@ class ControlSignals extends Bundle {
   val SetZero = Bool()
   val SetCarry = Bool()
   val DestF = Bool()
+  val WriteMem = Bool()
 }
 
 class Status extends Bundle {
@@ -53,60 +54,60 @@ class IDecode extends Module {
   io.signals.DestF := io.instruction(7) === 1.U
   io.signals.Address := io.instruction(6, 0)
   io.signals.Literal2 := 0.U
+  io.signals.WriteMem := true.B
 
   val wreg_addr = 9.U
 
   //printf("instruction is %x\n", io.instruction)
-  switch (io.instruction(13,8)) {
-    is ("b0_00111".U) { //ADDWF
+  when (io.instruction(13,8) === "b0_00111".U) { //ADDWF
       //printf("decoded ADDWF\n")
       io.signals.Operation := aAdd
       io.signals.SetCarry := true.B
       io.signals.SetZero := true.B
-    }
-    is ("b11_1101".U) { //ADDWFC
+  }
+  .elsewhen (io.instruction(13,8) === "b11_1101".U) { //ADDWFC
       print("decoded ADDWFC")
       io.signals.Operation := aAddWithCarry
       io.signals.SetCarry := true.B
       io.signals.SetZero := true.B
-    }
-    is ("b00_0101".U) { //ANDWF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_0101".U) { //ANDWF
       print("decoded ANDWF\n")
       io.signals.Operation := aAnd
       io.signals.SetZero := true.B
-    }
-    is ("b11_0111".U) { //ASRF
+  }
+  .elsewhen (io.instruction(13,8) === "b11_0111".U) { //ASRF
       print("decoded ASRF\n")
       io.signals.Operation := aArithRightShift
       io.signals.SetCarry := true.B
       io.signals.SetZero := true.B
-    }
-    is ("b11_0101".U) { //LSLF
+  }
+  .elsewhen (io.instruction(13,8) === "b11_0101".U) { //LSLF
       //printf("decoded LSLF\n")
       io.signals.Operation := aLeftShift
       io.signals.SetCarry := true.B
       io.signals.SetZero := true.B
-    }
-    is ("b11_0110".U) { //LSRF
+  }
+  .elsewhen (io.instruction(13,8) === "b11_0110".U) { //LSRF
       //printf("decoded LSRF\n")
       io.signals.Operation := aRightShift
       io.signals.SetCarry := true.B
       io.signals.SetZero := true.B
-    }
-    is ("b00_0001".U) { //CLRF + CLRW
+  }
+  .elsewhen (io.instruction(13,8) === "b00_0001".U) { //CLRF + CLRW
       //printf("decoded CLRF/W\n")
       io.signals.Operation := aIdentity2
       io.signals.Literal2 := 0.U
       io.signals.Source2 := srcLiteral
       io.signals.SetZero := true.B
-    }
-    is ("b00_1001".U) { //COMF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_1001".U) { //COMF
       //printf("decoded COMF\n")
       io.signals.Operation := aIdentity2
       io.signals.Complement2 := true.B
       io.signals.SetZero := true.B
-    }
-    is ("b00_0011".U) { //DECF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_0011".U) { //DECF
       //printf("decoded DECF\n")
       io.signals.Operation := aAdd
       io.signals.Complement2 := true.B
@@ -114,58 +115,62 @@ class IDecode extends Module {
       io.signals.Source2 := srcLiteral
       io.signals.Literal2 := 1.U
       io.signals.SetZero := true.B
-    }
-    is ("b00_1010".U) { //INCF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_1010".U) { //INCF
       //printf("decoded INCF\n")
       io.signals.Operation := aAdd
       io.signals.Source1 := srcBus
       io.signals.Source2 := srcLiteral
       io.signals.Literal2 := 1.U
       io.signals.SetZero := true.B
-    }
-    is ("b00_0100".U) { //IORWF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_0100".U) { //IORWF
       //printf("decoded IORWF\n")
       io.signals.Operation := aInclOr
       io.signals.SetZero := true.B
-    }
-    is ("b00_1000".U) { //MOVF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_1000".U) { //MOVF
       //printf("decoded MOVF\n")
       io.signals.Operation := aIdentity2
       io.signals.SetZero := true.B
-    }
-    is ("b00_0000".U) { //MOVWF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_0000".U) { //MOVWF / NOP
       //printf("decoded MOVWF\n")
       io.signals.Operation := aIdentity1
-    }
-    is ("b00_1101".U) { //RLF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_1101".U) { //RLF
       //printf("decoded RLF\n")
       io.signals.Operation := aRotateLeftCarry
       io.signals.SetCarry := true.B
-    }
-    is ("b00_1100".U) { //RRF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_1100".U) { //RRF
       //printf("decoded RRF\n")
       io.signals.Operation := aRotateRightCarry
       io.signals.SetCarry := true.B
-    }
-    is ("b00_0010".U) { //SUBWF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_0010".U) { //SUBWF
       //printf("decoded SUBWF\n")
       io.signals.Operation := aAdd
       io.signals.Complement1 := true.B
       io.signals.SetCarry := true.B
       io.signals.SetZero := true.B
-    }
-    is ("b11_1011".U) { //SUBWFB
+  }
+  .elsewhen (io.instruction(13,8) === "b11_1011".U) { //SUBWFB
       //printf("decoded SUBWFB\n")
       io.signals.Operation := aAddWithCarry
       io.signals.Complement1 := true.B
       io.signals.SetCarry := true.B
       io.signals.SetZero := true.B
-    }
-    is ("b00_1110".U) { //SWAPF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_1110".U) { //SWAPF
       //printf("decoded SWAPF\n")
       io.signals.Operation := aSwapNibbles2
-    }
-    //XORWF
+  }
+  .elsewhen (io.instruction(13,8) === "b00_0110".U) { //XORWF
+      //printf("decoded XORWF\n")
+      io.signals.Operation := aXor
+      io.signals.SetZero := true.B
+  }
     //DECFSZ
     //INCFSZ
     //BCF
@@ -178,14 +183,14 @@ class IDecode extends Module {
     //IORLW
     //MOVLB
     //MOVLP
-    is ("b11_0000".U) { //MOVLW
+  .elsewhen (io.instruction(13,8) === "b11_0000".U) { //MOVLW
       //printf("decoded MOVLW\n")
       io.signals.Operation := aIdentity2
       io.signals.Source2 := srcLiteral
       io.signals.Literal2 := io.instruction(7,0)
       io.signals.DestF := true.B
       io.signals.Address := wreg_addr
-    }
+  }
     //SUBLW
     //XORLW
 
@@ -199,7 +204,7 @@ class IDecode extends Module {
     //RETURN
 
     //CLRWDT
-    //NOP
+
     //RESET
     //SLEEP
     //TRIS
@@ -207,5 +212,9 @@ class IDecode extends Module {
     //ADDFSR
     //MOVIW
     //MOVWI
+  .otherwise { //NOP
+    //Nop
+    io.signals.WriteMem := false.B
   }
+
 }
