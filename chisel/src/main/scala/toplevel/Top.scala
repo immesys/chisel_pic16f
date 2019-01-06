@@ -100,7 +100,6 @@ class Toplevel extends Module {
   //Op decode
   val opdecode = Module(new IDecode)
   opdecode.io.instruction := instruction
-  opdecode.io.pclath := pclath
   val signals = opdecode.io.signals
 
   //ALU
@@ -166,18 +165,25 @@ class Toplevel extends Module {
     }
 
     when(signals.Pop) {
+      printf("asking stack to pop. Setting PC to %x\n", stack.io.tos)
       pc.pcl := stack.io.tos(7,0)
       pc.pch := stack.io.tos(14,8)
       stack.io.pop := true.B
     } .elsewhen (signals.SetPCAbs) {
       pc.pcl := signals.PCAbsAddr(7,0)
-      pc.pch := signals.PCAbsAddr(14,8)
+      pc.pch := Cat(pclath(6, 3), signals.PCAbsAddr(10,8))
     } .elsewhen (signals.AddPC ||
                 (signals.AddPCZero && alu_res_reg === 0.U) ||
                 (signals.AddPCNonzero && alu_res_reg =/= 0.U)) {
       val pcu = Wire(UInt(16.W))
       pcu := pc.asUInt
       val nextPC = (pcu.asSInt + signals.PCAddAddr).asUInt
+      pc.pcl := nextPC(7,0)
+      pc.pch := nextPC(14,8)
+    } .elsewhen (signals.AddPCW) {
+      val pcu = Wire(UInt(16.W))
+      pcu := pc.asUInt
+      val nextPC = (pcu.asSInt + wreg.asSInt).asUInt
       pc.pcl := nextPC(7,0)
       pc.pch := nextPC(14,8)
     }

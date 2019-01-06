@@ -69,7 +69,7 @@ for i in addrs:
     for k in range (0, len(comments)-1):
         print "        // %s" % comments[k]
     cma = ","
-    if i == len(addrs)-1:
+    if i == addrs[-1]:
         cma = " "
     print """        %d -> "h%s".U.litValue%s // %s""" % (i, dat[i][2:4]+dat[i][0:2], cma, comments[-1])
 print "     )"

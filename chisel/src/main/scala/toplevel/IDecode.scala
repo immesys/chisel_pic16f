@@ -23,9 +23,10 @@ class ControlSignals extends Bundle {
   val Push = Bool()
   val Pop = Bool()
   val SetPCAbs = Bool()
+  val AddPCW = Bool()
   val AddPCNonzero = Bool()
   val AddPCZero = Bool()
-  val PCAbsAddr = UInt(15.W)
+  val PCAbsAddr = UInt(11.W)
   val AddPC = Bool()
   val PCAddAddr = SInt(10.W)
 }
@@ -40,7 +41,6 @@ class Status extends Bundle {
 class IDecode extends Module {
   val io = IO(new Bundle {
     val instruction   = Input(UInt(14.W))
-    val pclath = Input(UInt(7.W))
     val signals = Output(new ControlSignals)
   })
   val ( aAdd :: aAddWithCarry :: aAnd :: aRightShift :: aArithRightShift ::
@@ -65,6 +65,7 @@ class IDecode extends Module {
   io.signals.Literal2 := 0.U
   io.signals.WriteMem := true.B
   io.signals.SetPCAbs := false.B
+  io.signals.AddPCW := false.B
   io.signals.AddPCNonzero := false.B
   io.signals.AddPCZero := false.B
   io.signals.PCAbsAddr := 0.U
@@ -152,7 +153,7 @@ class IDecode extends Module {
       io.signals.Operation := aIdentity2
       io.signals.SetZero := true.B
   }
-  .elsewhen (io.instruction(13,8) === "b00_0000".U) { //MOVWF / NOP
+  .elsewhen (io.instruction(13,7) === "b00_0000_1".U) { //MOVWF
       //printf("decoded MOVWF\n")
       io.signals.Operation := aIdentity1
   }
@@ -209,6 +210,7 @@ class IDecode extends Module {
       io.signals.AddPCZero := true.B
   }
   .elsewhen (io.instruction(13,10) === "b01_00".U) { //BCF
+      //printf("decoded BCF\n")
       var bitnum = io.instruction(9,7)
       var oh = UIntToOH(bitnum, 8)
       io.signals.Operation := aAnd
@@ -218,6 +220,7 @@ class IDecode extends Module {
       io.signals.DestF := true.B
   }
   .elsewhen (io.instruction(13,10) === "b01_01".U) { //BSF
+      //printf("decoded BSF\n")
       var bitnum = io.instruction(9,7)
       var oh = UIntToOH(bitnum, 8)
       io.signals.Operation := aInclOr
@@ -227,6 +230,7 @@ class IDecode extends Module {
       io.signals.DestF := true.B
   }
   .elsewhen (io.instruction(13,10) === "b01_10".U) { //BTFSC
+      //printf("decoded BTFSC\n")
       var bitnum = io.instruction(9,7)
       var oh = UIntToOH(bitnum, 8)
       io.signals.Operation := aAnd
@@ -238,6 +242,7 @@ class IDecode extends Module {
       io.signals.PCAddAddr := 1.S
   }
   .elsewhen (io.instruction(13,10) === "b01_11".U) { //BTFSS
+      //printf("decoded BTFSS\n")
       var bitnum = io.instruction(9,7)
       var oh = UIntToOH(bitnum, 8)
       io.signals.Operation := aAnd
@@ -314,26 +319,59 @@ class IDecode extends Module {
       io.signals.Source2 := srcLiteral
       io.signals.Literal2 := io.instruction(7,0)
   }
-    //BRA
-    //BRW
-    //CALL
+  .elsewhen (io.instruction(13,9) === "b11_001".U) { //BRA
+      //printf("decoded BRA\n")
+      val addr = io.instruction(8,0)
+      io.signals.PCAddAddr := addr.asSInt
+      io.signals.AddPC := true.B
+      io.signals.WriteMem := false.B
+  }
+  .elsewhen (io.instruction === "b00_0000_0000_1011".U) { //BRW
+      //printf("decoded BRW\n")
+      io.signals.AddPCW := true.B
+      io.signals.WriteMem := false.B
+  }
+  .elsewhen (io.instruction(13,11) === "b10_0".U) { //CALL
+      //printf("decoded CALL\n")
+      io.signals.PCAbsAddr := io.instruction(10,0)
+      io.signals.SetPCAbs := true.B
+      io.signals.Push := true.B
+      io.signals.WriteMem := false.B
+  }
     //CALLW
-    //GOTO
-    //RETFIE
-    //RETLW
-    //RETURN
-
-    //CLRWDT
-
-    //RESET
-    //SLEEP
-    //TRIS
-
+  .elsewhen (io.instruction(13,11) === "b10_1".U) { //GOTO
+      //printf("decoded GOTO\n")
+      io.signals.PCAbsAddr := io.instruction(10,0)
+      io.signals.SetPCAbs := true.B
+      io.signals.WriteMem := false.B
+  }
+  .elsewhen (io.instruction(13,8) === "b11_0100".U) { //RETLW
+      //printf("decoded RETLW\n")
+      io.signals.Pop := true.B
+      io.signals.Operation := aIdentity2
+      io.signals.Source2 := srcLiteral
+      io.signals.Literal2 := io.instruction(7,0)
+      io.signals.DestF := false.B
+  }
+  .elsewhen (io.instruction === "b00_0000_0000_1000".U) { //RETURN
+      //printf("decoded RETURN\n")
+      io.signals.Pop := true.B
+      io.signals.WriteMem := false.B
+  }
+    //-- TODO
     //ADDFSR
     //MOVIW
     //MOVWI
+    //-- Probably never implement
+    //CLRWDT
+    //RETFIE
+    //RESET
+    //SLEEP
+    //TRIS
   .otherwise { //NOP
     //Nop
+    var inst = io.instruction
+    var cv = io.instruction === "b00_0000_0000_1000".U
     io.signals.WriteMem := false.B
   }
 

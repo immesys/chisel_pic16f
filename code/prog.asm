@@ -372,3 +372,72 @@ testmovlb:
   movlw 7
   bcf wreg, 0
   expect 6
+
+  ; test bra
+  movlw 5
+  movwf B
+  bra testbra1
+  movlw 6
+  movlw 7
+  movwf B
+testbra3:
+  movlw 27
+  bra testbra2
+testbra1:
+  expect 5
+  bra testbra3
+testbra2:
+  expect 27
+  movf B, w
+  expect 5
+
+; test pagesel
+  movlw 85
+  movwf B ; about to pagesel
+  pagesel faraway
+  goto faraway & 0x7FF
+
+; a function to call that lies before the next piece
+org 0x500
+setw:
+  movlw 73
+  return
+  expect 1 ; should not hit
+
+
+; stuff far away to test pagesel
+org 0x1000
+  movlw 4
+  movwf B
+faraway:
+  movf B, w
+  expect 85
+
+ ; test call ret
+ movlw 5
+ pagesel setw
+ call setw ; this should fail
+ expect 73
+
+ ; test brw
+ movlw 2
+ brw
+ movlw 4
+ movlw 4
+ expect 2
+ nop ; end of tests
+
+ ; test retlw
+ clrf wreg
+ pagesel retlw94
+ call retlw94 & 0x7FF
+ expect 94
+
+ ; end tests
+ pagesel $
+ goto $ & 0x7FF
+
+ ; some utility functions
+org 0x1300
+retlw94:
+  retlw 94
