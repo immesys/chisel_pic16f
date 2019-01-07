@@ -85,7 +85,7 @@ class Toplevel (testing: Boolean) extends Module {
   stack.io.pop := false.B
   stack.io.push_addr := 0.U
   val sram_read_value = mem.read(mapped_addr(11,0))
-  val bus_zero :: bus_sram :: bus_alu :: Nil = Enum(3)
+  val bus_zero :: bus_sram :: bus_alu :: bus_w :: Nil = Enum(4)
   val bus_in_sel = Wire(UInt(3.W))
   val bus_out_sel = Wire(UInt(3.W))
   val bus_write = Wire(Bool())
@@ -134,9 +134,23 @@ class Toplevel (testing: Boolean) extends Module {
     // combinatorial for this cycle
     opdecode.io.instruction := io.ebus_in
     // send from idecode to addr mapping
-    raw_addr := Cat(bsr(5,0), signals.Address)
+    // raw_addr := Cat(bsr(5,0), signals.Address)
     printf("cy is 1, flashval = %b sigAddr is %x\n", io.ebus_in, signals.Address)
     printf("cy is 1, bsr=%x mapped_addr is %x\n", bsr, mapped_addr)
+
+    when (!signals.SpecialINDF) {
+      raw_addr := Cat(bsr(5,0), signals.Address)
+    } .otherwise {
+      val indf_addr = Wire(SInt(17.W))
+      when (signals.FSRNum === 0.U) {
+        indf_addr := (fsr0.asUInt).asSInt + signals.FSRPreAdd
+        printf("XXX fsr addr=%x result=%x\n", fsr0.asUInt, indf_addr)
+      } .otherwise {
+        indf_addr := (fsr1.asUInt).asSInt + signals.FSRPreAdd
+      }
+      raw_addr := indf_addr.asUInt
+      printf("raw_addr c3 is %x\n", raw_addr)
+    }
 
     when (mapped_addr > "h6000".U) {
       //This is a flash/external address
@@ -150,14 +164,14 @@ class Toplevel (testing: Boolean) extends Module {
     ebus_en_b := true.B
     io.ebus_out := mapped_addr_reg
     io.ebus_alatch := true.B
-    //preserve mapped_reg on next cycle
-    raw_addr := Cat(bsr(5,0), signals.Address)
+
+    mapped_addr_reg := mapped_addr_reg
   } .elsewhen (cycle === 3.U) {
     cycle := 4.U
     io.ebus_read := true.B
     printf("cycle is 3, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
     printf("alu op is %d\n", signals.Operation)
-    raw_addr := Cat(bsr(5,0), signals.Address)
+
     bus_in_sel := bus_sram
     alu_res_reg := alu_res
     status := alu_status_res.asUInt
@@ -169,9 +183,18 @@ class Toplevel (testing: Boolean) extends Module {
   } .elsewhen (cycle === 4.U)
   {
     cycle := 0.U
-    raw_addr := Cat(bsr(5,0), signals.Address)
+  //  raw_addr := Cat(bsr(5,0), signals.Address)
     when (signals.WriteMem) {
-      when (signals.DestF) {
+      when (signals.SpecialINDF) {
+        when (signals.SpecialINDF_ToW) {
+          printf("sending alu res %x to w\n", alu_res_reg)
+          wreg := alu_res_reg
+        } .otherwise {
+          bus_in_sel := bus_w
+          bus_out_sel := bus_sram
+          bus_write := true.B
+        }
+      } .elsewhen (signals.DestF) {
         bus_in_sel := bus_alu
         bus_out_sel := bus_sram
         bus_write := true.B
@@ -179,6 +202,25 @@ class Toplevel (testing: Boolean) extends Module {
         bus_out_sel := bus_zero
         bus_write := false.B
         wreg := alu_res_reg
+      }
+    }
+
+    when (signals.SpecialINDF) {
+      printf("performing special INDF writeback\n")
+      when (signals.FSRNum === 0.U) {
+        val curFSR = Wire(UInt(17.W))
+        curFSR := fsr0.asUInt
+        val nextFSR = curFSR.asSInt + signals.FSRPostAdd
+        fsr0.fsr0l := nextFSR(7,0)
+        fsr0.fsr0h := nextFSR(15,8)
+        printf("new FSR0 value is %x\n", nextFSR)
+      } .otherwise {
+        val curFSR = Wire(UInt(17.W))
+        curFSR := fsr1.asUInt
+        val nextFSR = curFSR.asSInt + signals.FSRPostAdd
+        fsr1.fsr1l := nextFSR(7,0)
+        fsr1.fsr1h := nextFSR(15,8)
+        printf("new FSR1 value is %x\n", nextFSR)
       }
     }
 
@@ -268,6 +310,8 @@ class Toplevel (testing: Boolean) extends Module {
     }
   } .elsewhen (bus_in_sel === bus_alu) {
     bus_value := alu_res_reg
+  } .elsewhen (bus_in_sel === bus_w) {
+    bus_value := wreg
   } .otherwise {
     bus_value := 0.U
   }

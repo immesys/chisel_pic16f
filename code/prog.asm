@@ -36,6 +36,14 @@ B: ds 1
 PSECT udata2,class=BANK1,space=1
 A1: ds 1
 
+PSECT udata3,class=BANK3,space=1
+ud3_0: ds 1
+ud3_1: ds 1
+ud3_2: ds 1
+ud3_3: ds 1
+ud3_4: ds 1
+ud3_5: ds 1
+
 PSECT comm,class=COMMON,space=1
 ValueReg: ds 1
 ExpectReg: ds 1
@@ -420,7 +428,7 @@ setw:
 
 
 ; stuff far away to test pagesel
-org 0x700
+org 0x600
   movlw 4
   movwf B
 faraway:
@@ -526,6 +534,85 @@ flashinstr: movlw 0x78
  movwf fsr1l
  movlw 0x94
  movwf indf1
+
+ ; test indf to ALU from flash
+ movlw high flashinstr
+ movwf fsr0h
+ bsf fsr0h, 7 ; must be 0x8yyy
+ movlw low flashinstr
+ movwf fsr0l
+ movlw 5
+ addwf indf0, w
+ expect 0x7d
+
+ ; test increment via indf
+ banksel A1
+ movlw 48
+ movwf A1 & 0x7F
+ banksel A
+ movlw high A1
+ movwf fsr1h
+ movlw low A1
+ movwf fsr1l
+ incf indf1
+ banksel A1
+ movf A1 & 0x7F, w
+ expect 49
+
+ ; test addfsr0
+ clrf fsr0h
+ clrf fsr0l
+ addfsr 0, 5
+ movf fsr0l, w
+ expect 5
+ movlw 254
+ movwf fsr0l
+ addfsr 0, 5
+ movf fsr0l, w
+ expect 3
+ movf fsr0h, w
+ expect 1
+
+ ; test addfsr1
+ clrf fsr1h
+ clrf fsr1l
+ addfsr 1, 7
+ movf fsr1l, w
+ expect 7
+ movlw 252
+ movwf fsr1l
+ addfsr 1, 9
+ movf fsr1l, w
+ expect 5
+ movf fsr1h, w
+ expect 1
+
+ ; test moviw mn
+ banksel ud3_0
+ movlw 30
+ movwf ud3_0 & 0x7F
+ movlw 31
+ movwf ud3_1 & 0x7F
+ movlw 32
+ movwf ud3_2 & 0x7F
+ movlw 33
+ movwf ud3_3 & 0x7F
+ movlw 34
+ movwf ud3_4 & 0x7F
+ movlw 35
+ movwf ud3_5 & 0x7F
+ ; set up indf0
+ movlw high ud3_3
+ movwf fsr0h
+ movlw low ud3_3
+ movwf fsr0l
+ ; now access
+ moviw [0]FSR0
+ expect 33
+ moviw [-1]FSR0
+ expect 32
+ moviw [1]FSR0
+ expect 34
 
  ; end tests
  pagesel endtests
