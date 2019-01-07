@@ -100,7 +100,7 @@ class Toplevel (testing: Boolean) extends Module {
   val alu_pre_res = Wire(UInt(9.W))
   val alu_status_res = Wire(new Status)
 
-  when (cycle === 4.U)
+  when (cycle === 3.U)
   {
     cycle := 0.U
   } .otherwise {
@@ -121,24 +121,26 @@ class Toplevel (testing: Boolean) extends Module {
   } .elsewhen (cycle === 1.U) {
     //flash value -> instruction register
     io.ebus_read := true.B
+    // register for subsequent cycles
     instruction := io.ebus_in
-    printf("cy is 1, flashval = %b\n", io.ebus_in)
-  } .elsewhen (cycle === 2.U) {
-    //To prevent smem optimization, write out from smem here
-    if (testing) {
-      io.ebus_out := smem.read(mapped_addr)
-    }
-    //instruction addr -> sram read addr
-    printf("cycle is 2, sigAddr is %x\n", signals.Address)
+    // combinatorial for this cycle
+    opdecode.io.instruction := io.ebus_in
+    // send from idecode to addr mapping
     raw_addr := signals.Address
-  } .elsewhen (cycle === 3.U) {
-    printf("cycle is 3, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
+    printf("cy is 1, flashval = %b sigAddr is %x\n", io.ebus_in, signals.Address)
+  } .elsewhen (cycle === 2.U) {
+    printf("cycle is 2, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
     printf("alu op is %d\n", signals.Operation)
     raw_addr := signals.Address
     bus_in_sel := bus_sram
     alu_res_reg := alu_res
     status := alu_status_res.asUInt
-  } .elsewhen (cycle === 4.U)
+
+    //For testing, write ebus from smem here
+    if (testing) {
+      io.ebus_out := smem.read(mapped_addr_reg)
+    }
+  } .elsewhen (cycle === 3.U)
   {
     raw_addr := signals.Address
     when (signals.WriteMem) {
@@ -182,9 +184,9 @@ class Toplevel (testing: Boolean) extends Module {
       pc.pch := nextPC(14,8)
     }
 
-    printf("cy4 s=%x sz=%x snz=%x res=%x\n", signals.AddPC, signals.AddPCZero, signals.AddPCNonzero, alu_res_reg)
-    printf("cy4 rawaddr=%x mapped=%x\n", raw_addr, mapped_addr)
-    printf("cy4, wreg=%x (%b) df=%b status=%b\n", wreg, wreg, signals.DestF, status)
+    printf("cy3 s=%x sz=%x snz=%x res=%x\n", signals.AddPC, signals.AddPCZero, signals.AddPCNonzero, alu_res_reg)
+    printf("cy3 rawaddr=%x mapped=%x\n", raw_addr, mapped_addr)
+    printf("cy3, wreg=%x (%b) df=%b status=%b\n", wreg, wreg, signals.DestF, status)
   }
 
   when (bus_in_sel === bus_sram)
