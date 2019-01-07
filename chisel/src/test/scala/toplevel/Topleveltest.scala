@@ -18,10 +18,14 @@ class TopLevelTestWrapper extends Module {
   io.flash_addr := addr(14,0)
 
   when (t.io.ebus_alatch) {
+  //  printf("EBUS ADDR LATCH addr=%x\n", t.io.ebus_out)
     addr := t.io.ebus_out
   }
   when (t.io.ebus_read && addr > "h8000".U) {
     t.io.ebus_in := io.flash_value
+  }
+  when (t.io.ebus_write) {
+    printf("EBUS WRITE addr=%x val=%x\n", addr, t.io.ebus_out)
   }
 }
 

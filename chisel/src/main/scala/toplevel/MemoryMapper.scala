@@ -18,8 +18,10 @@ class MemoryMapper extends Module {
 
   when (io.raw_addr < "h2000".U) {
     when (bank_addr === "h00".U) { //indf0
+      printf("mapping address to FSR0 %x\n", io.fsr0)
       io.mapped_addr := io.fsr0
     } .elsewhen (bank_addr === "h01".U) { //indf1
+      printf("mapping address to FSR1 %x\n", io.fsr1)
       io.mapped_addr := io.fsr1
     } .elsewhen (bank_addr < "h0C".U) { //other core registers
       //Core registers
@@ -33,13 +35,13 @@ class MemoryMapper extends Module {
       io.mapped_addr := bank_addr - "h70".U
     }
   }
-  .elsewhen (io.raw_addr < "h7FFF".U)
+  .elsewhen (io.raw_addr < "h6000".U)
   { //Linear data memory. Common 16B are not mapped
     io.mapped_addr := io.raw_addr - 16.U
   }
   .otherwise
   {
-    //Flash (>8000)
+    //Flash / external (>=6000)
     io.mapped_addr := io.raw_addr
   }
 }

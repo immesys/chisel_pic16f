@@ -519,6 +519,14 @@ flashinstr: movlw 0x78
  movf indf0, w
  expect 0x78
 
+ ; test indf ebus write (watch for print)
+ movlw 0x63
+ movwf fsr1h
+ movlw 0x45
+ movwf fsr1l
+ movlw 0x94
+ movwf indf1
+
  ; end tests
  pagesel endtests
  goto endtests & 0x7FF

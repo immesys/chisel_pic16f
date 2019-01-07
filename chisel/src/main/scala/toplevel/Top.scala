@@ -259,7 +259,7 @@ class Toplevel (testing: Boolean) extends Module {
     } .elsewhen(mapped_addr_reg === "h1C0B".U)
     {
       bus_value := intcon
-    } .elsewhen(mapped_addr_reg >= "h2000".U)
+    } .elsewhen(mapped_addr_reg >= "h6000".U)
     {
       //Flash read / external read
       bus_value := io.ebus_in(7,0)
