@@ -59,15 +59,17 @@ module top (
   Toplevel gatepc (
     .clock    ( CLK    ),
     .reset    ( RST    ),
-    .io_pins_left_in  (pinsl_in),
-    .io_pins_left_out (pinsl_out),
-    .io_pins_left_en  (pinsl_out_en),
-    .io_pins_right_in  (pinsr_in),
-    .io_pins_right_out (pinsr_out),
-    .io_pins_right_en  (pinsr_out_en)
+
+    .io_ebus_in   ({pinsl_in[13:1], pinsr_in[24:22]}),
+    .io_ebus_out  ({pinsl_out[13:1], pinsr_out[24:22]}),
+    .io_ebus_en   ({pinsl_out_en[13:1], pinsr_out_en[24:22]}),
+    .io_ebus_alatch  (pinsr_out[21]),
+    .io_ebus_read    (pinsr_out[20]),
+    .io_ebus_write   (pinsr_out[19]),
   );
 
-
+  assign pinsr_out_en[21:19] = 3'b 111;
+  assign pinsr_out_en[18:17] = 2'b 00;
 
   // drive USB pull-up resistor to '0' to disable USB
   assign USBPU = 0;

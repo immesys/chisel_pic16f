@@ -3,8 +3,31 @@ package toplevel
 
 import chisel3._
 
+
+class TopLevelTestWrapper extends Module {
+  val io = IO(new Bundle {
+    val flash_addr = Output(UInt(15.W))
+    val flash_value = Input(UInt(15.W))
+  })
+
+  val t = Module(new Toplevel(true))
+  t.io.ebus_in := 0.U
+//  val smem = t.smem
+
+  val addr = Reg(UInt(16.W))
+  io.flash_addr := addr(14,0)
+
+  when (t.io.ebus_alatch) {
+    addr := t.io.ebus_out
+  }
+  when (t.io.ebus_read && addr > "h8000".U) {
+    t.io.ebus_in := io.flash_value
+  }
+}
+
+
 object ToplevelMain extends App {
-  iotesters.Driver.execute(args, () => new Toplevel) {
+  iotesters.Driver.execute(args, () => new TopLevelTestWrapper) {
     c => new ToplevelUnitTester(c)
   }
 }
@@ -14,29 +37,26 @@ import java.io.File
 import chisel3.iotesters
 import chisel3.iotesters.{ChiselFlatSpec, Driver, PeekPokeTester}
 
-class ToplevelUnitTester(c: Toplevel) extends PeekPokeTester(c) {
+class ToplevelUnitTester(c: TopLevelTestWrapper) extends PeekPokeTester(c) {
 
   private val tl = c
 
   val flashmem = (new CompiledMem).CMem
-/*  val flashmem = Map(
-    0 -> "b00_0011_0_000_1001".U.litValue //incf w
-    1 -> "b00_0011_0_000_1001".U.litValue //incf w
-  )
-  */
+
   def gstep(x:Int) = {
     for( a <- 1 to x){
-      val addr = peek(tl.io.flash_read_addr)
+      val addr = peek(tl.io.flash_addr)
       val res : BigInt = flashmem get addr.toInt match {
         case Some(result) => result
         case None => 0
       }
       Console.println(s"poking flash $addr->$res")
-      poke(tl.io.flash_read_val, res)
-      var rega = peekAt(tl.mem, 36)
-      var valuereg = peekAt(tl.mem, 37)
-      var expectreg = peekAt(tl.mem, 38)
-      var testreg = peekAt(tl.mem, 39)
+      poke(tl.io.flash_value, res)
+
+      var rega = peekAt(tl.t.smem, 36)
+      var valuereg = peekAt(tl.t.smem, 37)
+      var expectreg = peekAt(tl.t.smem, 38)
+      var testreg = peekAt(tl.t.smem, 39)
       Console.println(s"a=$rega v=$valuereg e=$expectreg t=$testreg")
       if (testreg > 0) {
         Console.println(s"PERFORMING TEST $expectreg == $valuereg")

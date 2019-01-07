@@ -5,27 +5,33 @@ import chisel3.util._
 import gcd.GCD
 import chisel3.util.experimental.loadMemoryFromFile
 
-class Toplevel extends Module {
+class Toplevel (testing: Boolean) extends Module {
   val io = IO(new Bundle {
-    val pins_left_in   = Input(UInt(13.W))
-    val pins_left_out  = Output(UInt(13.W))
-    val pins_left_en   = Output(UInt(13.W))
-    val pins_right_in  = Input(UInt(8.W))
-    val pins_right_out = Output(UInt(8.W))
-    val pins_right_en  = Output(UInt(8.W))
+    val ebus_in = Input(UInt(16.W))
+    val ebus_out = Output(UInt(16.W))
+    val ebus_en = Output(UInt(16.W))
 
-    val flash_read_addr = Output(UInt(15.W))
-    val flash_read_val = Input(UInt(14.W))
-    val w = Output(UInt(8.W))
-    val pcl = Output(UInt(8.W))
+    val ebus_alatch = Output(Bool())
+    val ebus_read = Output(Bool())
+    val ebus_write = Output(Bool())
+
+    //val flash_read_addr = Output(UInt(15.W))
+    //val flash_read_val = Input(UInt(14.W))
   })
 
-  val x = (new CompiledMem).CMem
+  var ebus_en_b = Wire(Bool())
 
-  io.pins_right_out := "hFF".U;
-  io.pins_right_en := "h00".U;
-  io.pins_left_en := "b1111111111111".U;
-  io.pins_left_out := 0.U
+  when (ebus_en_b) {
+    io.ebus_en := "hffff".U
+  } .otherwise {
+    io.ebus_en := 0.U
+  }
+
+  ebus_en_b := false.B
+  io.ebus_out := 0.U
+  io.ebus_alatch := false.B
+  io.ebus_read := false.B
+  io.ebus_write := false.B
 
   //values read from the fsr addresses
   var indf0 = Reg(UInt(8.W))
@@ -52,9 +58,6 @@ class Toplevel extends Module {
   val pclath = RegInit(0.U(7.W))
   val intcon = RegInit(0.U(8.W))
 
-  io.w := wreg
-  io.pcl := pc.pcl
-
   val bus_value = Wire(UInt(16.W))
   //For saving the address across cycles
   val addr = Reg(UInt(16.W))
@@ -67,22 +70,9 @@ class Toplevel extends Module {
   mapper.io.raw_addr := raw_addr
   raw_addr := 7.U
 
-  //Flash
-  //val flash = SyncReadMem(4096, UInt(14.W))
-  //val flash_read_val = flash.read(mapped_addr(12,0))
-  val flash_read_val = io.flash_read_val
-  io.flash_read_addr := mapped_addr(14,0)
-
-  //Flash testing
-  val flash_write = Wire(Bool())
-  flash_write := false.B
-  val flash_write_addr = Wire(UInt(12.W))
-  flash_write_addr := 0.U
-  val flash_write_val = Wire(UInt(14.W))
-  flash_write_val := 0.U
-
   //Bus memory mux
-  val mem = Mem(4096, UInt(8.W))
+  val mem = SyncReadMem(4096, UInt(8.W))
+  var smem = Mem(4096, UInt(8.W))
   val stack = Module(new Stack)
   stack.io.push := false.B
   stack.io.pop := false.B
@@ -118,21 +108,25 @@ class Toplevel extends Module {
 
   when (cycle === 0.U)
   {
-      raw_addr := Cat(1.U, pc.asUInt)
-      val nextPC = pc.asUInt + 1.U
-      pc.pch := nextPC(14,8)
-      pc.pcl := nextPC(7,0)
-      addr := raw_addr
-      printf("cycle is 0, pc=%x (h%x ----------------- d%d)\n", raw_addr, mapped_addr(14,0), mapped_addr(14,0))
+    raw_addr := Cat(1.U, pc.asUInt)
+    val nextPC = pc.asUInt + 1.U
+    pc.pch := nextPC(14,8)
+    pc.pcl := nextPC(7,0)
+    addr := raw_addr
+    io.ebus_out := mapped_addr
+    ebus_en_b := true.B
+    io.ebus_alatch := true.B
+    printf("cycle is 0, pc=%x (h%x ----------------- d%d)\n", mapped_addr, mapped_addr(14,0), mapped_addr(14,0))
   } .elsewhen (cycle === 1.U) {
-    //This might not be necessary, but it's needed for sim
-    raw_addr := addr
-
     //flash value -> instruction register
-    printf("cycle is 1, flashval = %b\n", flash_read_val)
-    instruction := flash_read_val
+    io.ebus_read := true.B
+    instruction := io.ebus_in
+    printf("cy is 1, flashval = %b\n", io.ebus_in)
   } .elsewhen (cycle === 2.U) {
-
+    //To prevent smem optimization, write out from smem here
+    if (testing) {
+      io.ebus_out := smem.read(mapped_addr)
+    }
     //instruction addr -> sram read addr
     printf("cycle is 2, sigAddr is %x\n", signals.Address)
   //  bus_in_sel := bus_sram
@@ -193,12 +187,6 @@ class Toplevel extends Module {
     printf("cy4, wreg=%x (%b) df=%b status=%b\n", wreg, wreg, signals.DestF, status)
   }
 
-
-//  when (mapped_addr < "h1000".U && bus_write)
-//  {
-//    mem.write(mapped_addr(11,0), bus_value(7,0))
-//  }
-
   when (bus_in_sel === bus_sram)
   {
     when(mapped_addr < "h1000".U)
@@ -257,6 +245,9 @@ class Toplevel extends Module {
     {
       printf("writing to memory addr=%x val=%x\n", mapped_addr(11,0), bus_value)
       mem.write(mapped_addr(11,0), bus_value)
+      if (testing) {
+        smem.write(mapped_addr(11,0), bus_value)
+      }
     } .elsewhen(mapped_addr === "h1C00".U)
     {
       //Can't write to indf through fsr
@@ -422,6 +413,6 @@ class Toplevel extends Module {
 
 object ToplevelDriver extends App {
   chisel3.Driver.execute(args, () => {
-    new Toplevel
+    new Toplevel(false)
   })
 }
