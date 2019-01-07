@@ -67,6 +67,7 @@ class Toplevel (testing: Boolean) extends Module {
   val mapped_addr = Wire(UInt(16.W))
   val mapper = Module(new MemoryMapper)
   mapped_addr := mapper.io.mapped_addr
+  val mapped_addr_reg = RegNext(mapped_addr)
   mapper.io.raw_addr := raw_addr
   raw_addr := 7.U
 
@@ -129,7 +130,6 @@ class Toplevel (testing: Boolean) extends Module {
     }
     //instruction addr -> sram read addr
     printf("cycle is 2, sigAddr is %x\n", signals.Address)
-  //  bus_in_sel := bus_sram
     raw_addr := signals.Address
   } .elsewhen (cycle === 3.U) {
     printf("cycle is 3, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
@@ -189,45 +189,45 @@ class Toplevel (testing: Boolean) extends Module {
 
   when (bus_in_sel === bus_sram)
   {
-    when(mapped_addr < "h1000".U)
+    when(mapped_addr_reg < "h1000".U)
     {
       bus_value := sram_read_value
-    } .elsewhen(mapped_addr === "h1C00".U)
+    } .elsewhen(mapped_addr_reg === "h1C00".U)
     {
       //You can't set FSR to the indf address
       bus_value := 0.U
-    } .elsewhen(mapped_addr === "h1C01".U)
+    } .elsewhen(mapped_addr_reg === "h1C01".U)
     {
       //You can't set FSR to the indf address
       bus_value := 0.U
-    } .elsewhen(mapped_addr === "h1C02".U)
+    } .elsewhen(mapped_addr_reg === "h1C02".U)
     {
       bus_value := pc.pcl
-    } .elsewhen(mapped_addr === "h1C03".U)
+    } .elsewhen(mapped_addr_reg === "h1C03".U)
     {
       bus_value := status
     } .elsewhen(mapped_addr === "h1C04".U)
     {
       bus_value := fsr0.fsr0l
-    } .elsewhen(mapped_addr === "h1C05".U)
+    } .elsewhen(mapped_addr_reg === "h1C05".U)
     {
       bus_value := fsr0.fsr0h
-    } .elsewhen(mapped_addr === "h1C06".U)
+    } .elsewhen(mapped_addr_reg === "h1C06".U)
     {
       bus_value := fsr1.fsr1l
-    } .elsewhen(mapped_addr === "h1C07".U)
+    } .elsewhen(mapped_addr_reg === "h1C07".U)
     {
       bus_value := fsr1.fsr1h
-    } .elsewhen(mapped_addr === "h1C08".U)
+    } .elsewhen(mapped_addr_reg === "h1C08".U)
     {
       bus_value := bsr
-    } .elsewhen(mapped_addr === "h1C09".U)
+    } .elsewhen(mapped_addr_reg === "h1C09".U)
     {
       bus_value := wreg
-    } .elsewhen(mapped_addr === "h1C0A".U)
+    } .elsewhen(mapped_addr_reg === "h1C0A".U)
     {
       bus_value := pclath
-    } .elsewhen(mapped_addr === "h1C0B".U)
+    } .elsewhen(mapped_addr_reg === "h1C0B".U)
     {
       bus_value := intcon
     } .otherwise {
@@ -241,49 +241,49 @@ class Toplevel (testing: Boolean) extends Module {
 
   when(bus_out_sel === bus_sram && bus_write)
   {
-    when(mapped_addr < "h1000".U)
+    when(mapped_addr_reg < "h1000".U)
     {
-      printf("writing to memory addr=%x val=%x\n", mapped_addr(11,0), bus_value)
-      mem.write(mapped_addr(11,0), bus_value)
+      printf("writing to memory addr=%x val=%x\n", mapped_addr_reg(11,0), bus_value)
+      mem.write(mapped_addr_reg(11,0), bus_value)
       if (testing) {
-        smem.write(mapped_addr(11,0), bus_value)
+        smem.write(mapped_addr_reg(11,0), bus_value)
       }
-    } .elsewhen(mapped_addr === "h1C00".U)
+    } .elsewhen(mapped_addr_reg === "h1C00".U)
     {
       //Can't write to indf through fsr
-    } .elsewhen(mapped_addr === "h1C01".U)
+    } .elsewhen(mapped_addr_reg === "h1C01".U)
     {
       //Can't write to indf through fsr
-    } .elsewhen(mapped_addr === "h1C02".U)
+    } .elsewhen(mapped_addr_reg === "h1C02".U)
     {
       printf("writing to pcl=%x and pclh=%x\n", bus_value, pclath)
       pc.pcl := bus_value
       pc.pch := pclath
-    } .elsewhen(mapped_addr === "h1C03".U)
+    } .elsewhen(mapped_addr_reg === "h1C03".U)
     {
       status := bus_value
-    } .elsewhen(mapped_addr === "h1C04".U)
+    } .elsewhen(mapped_addr_reg === "h1C04".U)
     {
       fsr0.fsr0l := bus_value
-    } .elsewhen(mapped_addr === "h1C05".U)
+    } .elsewhen(mapped_addr_reg === "h1C05".U)
     {
       fsr0.fsr0h := bus_value
-    } .elsewhen(mapped_addr === "h1C06".U)
+    } .elsewhen(mapped_addr_reg === "h1C06".U)
     {
       fsr1.fsr1l := bus_value
-    } .elsewhen(mapped_addr === "h1C07".U)
+    } .elsewhen(mapped_addr_reg === "h1C07".U)
     {
       fsr1.fsr1h := bus_value
-    } .elsewhen(mapped_addr === "h1C08".U)
+    } .elsewhen(mapped_addr_reg === "h1C08".U)
     {
       bsr := bus_value
-    } .elsewhen(mapped_addr === "h1C09".U)
+    } .elsewhen(mapped_addr_reg === "h1C09".U)
     {
       wreg := bus_value
-    } .elsewhen(mapped_addr === "h1C0A".U)
+    } .elsewhen(mapped_addr_reg === "h1C0A".U)
     {
       pclath := bus_value
-    } .elsewhen(mapped_addr === "h1C0B".U)
+    } .elsewhen(mapped_addr_reg === "h1C0B".U)
     {
       intcon := bus_value
     } .otherwise {

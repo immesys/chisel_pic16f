@@ -13,7 +13,7 @@ class MemoryMapper extends Module {
 
   val bank_addr = io.raw_addr(7,0)
   val bank_sel = io.raw_addr(15,8)
-
+  
   when (io.raw_addr < "h2000".U) {
     when (bank_addr < "h0C".U) {
       //Core registers
