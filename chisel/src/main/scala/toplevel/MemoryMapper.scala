@@ -9,13 +9,19 @@ class MemoryMapper extends Module {
   val io = IO(new Bundle {
     val raw_addr  = Input(UInt(16.W))
     val mapped_addr = Output(UInt(16.W))
+    val fsr0 = Input(UInt(16.W))
+    val fsr1 = Input(UInt(16.W))
   })
 
   val bank_addr = io.raw_addr(7,0)
   val bank_sel = io.raw_addr(15,8)
 
   when (io.raw_addr < "h2000".U) {
-    when (bank_addr < "h0C".U) {
+    when (bank_addr === "h00".U) { //indf0
+      io.mapped_addr := io.fsr0
+    } .elsewhen (bank_addr === "h01".U) { //indf1
+      io.mapped_addr := io.fsr1
+    } .elsewhen (bank_addr < "h0C".U) { //other core registers
       //Core registers
       io.mapped_addr := "h1C00".U | bank_addr
     } .elsewhen (bank_addr < "h70".U) {

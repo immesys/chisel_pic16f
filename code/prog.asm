@@ -9,7 +9,7 @@ psect   strings,class=CODE,delta=2,reloc=256
 psect   intentry,class=CODE,delta=2
 psect   reset_vec,class=CODE,delta=2
 psect   functab,class=ENTRY,delta=2
-psect 	reset_vec
+
 
 ; SFR Addresses
 bsr equ 08h
@@ -28,11 +28,18 @@ status equ 03h
 wreg equ 09h
 
 ; variables
-A equ 20h
-ValueReg equ 21h
-ExpectReg equ 22h
-TestReg equ 23h
-B equ 24h
+
+PSECT udata,class=BANK0,space=1
+A: ds 1
+B: ds 1
+
+PSECT udata2,class=BANK1,space=1
+A1: ds1
+
+PSECT comm,class=COMMON,space=1
+ValueReg: ds 1
+ExpectReg: ds 1
+TestReg: ds 1
 
 ; Used for unit tests. Checks that W is equal to
 ; the given value
@@ -45,7 +52,13 @@ expect MACRO vv
   movf ValueReg, w
 endm
 
-reset_vec:
+
+PSECT reset_vec,class=CODE,delta=2
+  pagesel test_start
+  goto test_start
+
+PSECT text,class=CODE,delta=2
+test_start:
   ;test increment
   clrw
   incf wreg, w
@@ -183,6 +196,7 @@ reset_vec:
   ; test pcl write
   movlw 0x30
   movwf B
+  pagesel testpclwrite
   movlw low(testpclwrite)
   movwf pcl
   ; this should be skipped
@@ -406,7 +420,7 @@ setw:
 
 
 ; stuff far away to test pagesel
-org 0x1000
+org 0x700
   movlw 4
   movwf B
 faraway:
@@ -433,18 +447,24 @@ faraway:
  call retlw94 & 0x7FF
  expect 94
 
+ ; test bank_sel
+
+
  ; end tests
  pagesel endtests
  goto endtests & 0x7FF
 
+
+PSECT text2,class=CODE,delta=2
+
+org 0x00
+nop
+org 0x700
  ; some utility functions
-org 0x1300
+
 retlw94:
   retlw 94
 
-
-
-
-org 0x1700
 endtests:
+  pagesel $
   goto $ & 0x7FF

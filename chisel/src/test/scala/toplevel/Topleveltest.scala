@@ -55,17 +55,14 @@ class ToplevelUnitTester(c: TopLevelTestWrapper) extends PeekPokeTester(c) {
       Console.println(s"poking flash $addr->$res")
       poke(tl.io.flash_value, res)
 
-      var rega = peekAt(tl.t.smem, 36)
-      var valuereg = peekAt(tl.t.smem, 37)
-      var expectreg = peekAt(tl.t.smem, 38)
-      var testreg = peekAt(tl.t.smem, 39)
-      Console.println(s"a=$rega v=$valuereg e=$expectreg t=$testreg")
+      var valuereg = peekAt(tl.t.smem, 0)
+      var expectreg = peekAt(tl.t.smem, 1)
+      var testreg = peekAt(tl.t.smem, 2)
       if (testreg > 0) {
         testsdone = testsdone + 1
         Console.println(s"PERFORMING TEST $expectreg == $valuereg")
         expect(valuereg == expectreg, s"expected ${expectreg} got ${valuereg}")
       }
-      //Console.println(s"ram a=$rega b=$regb")
       step(1)
     }
   }

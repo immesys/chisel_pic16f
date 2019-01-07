@@ -45,10 +45,14 @@ class Toplevel (testing: Boolean) extends Module {
   }
   val pc = RegInit(0.U.asTypeOf(new PCBundle))
   val status = Reg(UInt(8.W))
+
+  val changedFSR = Reg(UInt(1.W))
+  val fsr0Shadow = Reg(UInt(16.W))
   val fsr0 = Reg(new Bundle{
     val fsr0h = UInt(8.W)
     val fsr0l = UInt(8.W)
   })
+  val fsr1Shadow = Reg(UInt(16.W))
   val fsr1 = Reg(new Bundle{
     val fsr1h = UInt(8.W)
     val fsr1l = UInt(8.W)
@@ -69,6 +73,8 @@ class Toplevel (testing: Boolean) extends Module {
   mapped_addr := mapper.io.mapped_addr
   val mapped_addr_reg = RegNext(mapped_addr)
   mapper.io.raw_addr := raw_addr
+  mapper.io.fsr0 := fsr0Shadow
+  mapper.io.fsr1 := fsr1Shadow
   raw_addr := 7.U
 
   //Bus memory mux
@@ -100,25 +106,28 @@ class Toplevel (testing: Boolean) extends Module {
   val alu_pre_res = Wire(UInt(9.W))
   val alu_status_res = Wire(new Status)
 
-  when (cycle === 3.U)
-  {
-    cycle := 0.U
-  } .otherwise {
-    cycle := cycle + 1.U
-  }
-
   when (cycle === 0.U)
   {
+    cycle := 1.U
     val nextPC = pc.asUInt + 1.U
     val curPC = pc.asUInt
     pc.pch := nextPC(14,8)
     pc.pcl := nextPC(7,0)
-
     io.ebus_out := Cat(1.U, pc.asUInt)
     ebus_en_b := true.B
     io.ebus_alatch := true.B
+
+    //Perform FSR shadow mapping
+    when (changedFSR === 0.U) {
+      raw_addr := fsr0.asUInt
+      fsr0Shadow := mapped_addr
+    } .otherwise {
+      raw_addr := fsr1.asUInt
+      fsr1Shadow := mapped_addr
+    }
     printf("cycle is 0, pc=%x (h%x ----------------- d%d)\n", curPC, curPC(14,0), curPC(14,0))
   } .elsewhen (cycle === 1.U) {
+    cycle := 3.U
     //flash value -> instruction register
     io.ebus_read := true.B
     // register for subsequent cycles
@@ -129,7 +138,10 @@ class Toplevel (testing: Boolean) extends Module {
     raw_addr := signals.Address
     printf("cy is 1, flashval = %b sigAddr is %x\n", io.ebus_in, signals.Address)
   } .elsewhen (cycle === 2.U) {
-    printf("cycle is 2, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
+    //reserved for flash indf
+  } .elsewhen (cycle === 3.U) {
+    cycle := 4.U
+    printf("cycle is 3, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
     printf("alu op is %d\n", signals.Operation)
     raw_addr := signals.Address
     bus_in_sel := bus_sram
@@ -140,8 +152,9 @@ class Toplevel (testing: Boolean) extends Module {
     if (testing) {
       io.ebus_out := smem.read(mapped_addr_reg)
     }
-  } .elsewhen (cycle === 3.U)
+  } .elsewhen (cycle === 4.U)
   {
+    cycle := 0.U
     raw_addr := signals.Address
     when (signals.WriteMem) {
       when (signals.DestF) {
@@ -184,9 +197,9 @@ class Toplevel (testing: Boolean) extends Module {
       pc.pch := nextPC(14,8)
     }
 
-    printf("cy3 s=%x sz=%x snz=%x res=%x\n", signals.AddPC, signals.AddPCZero, signals.AddPCNonzero, alu_res_reg)
-    printf("cy3 rawaddr=%x mapped=%x\n", raw_addr, mapped_addr)
-    printf("cy3, wreg=%x (%b) df=%b status=%b\n", wreg, wreg, signals.DestF, status)
+    printf("cy4 s=%x sz=%x snz=%x res=%x\n", signals.AddPC, signals.AddPCZero, signals.AddPCNonzero, alu_res_reg)
+    printf("cy4 rawaddr=%x mapped=%x\n", raw_addr, mapped_addr)
+    printf("cy4, wreg=%x (%b) df=%b status=%b\n", wreg, wreg, signals.DestF, status)
   }
 
   when (bus_in_sel === bus_sram)
