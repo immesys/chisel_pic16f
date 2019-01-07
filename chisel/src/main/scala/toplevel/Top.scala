@@ -206,7 +206,7 @@ class Toplevel (testing: Boolean) extends Module {
     } .elsewhen(mapped_addr_reg === "h1C03".U)
     {
       bus_value := status
-    } .elsewhen(mapped_addr === "h1C04".U)
+    } .elsewhen(mapped_addr_reg === "h1C04".U)
     {
       bus_value := fsr0.fsr0l
     } .elsewhen(mapped_addr_reg === "h1C05".U)
