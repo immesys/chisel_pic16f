@@ -127,7 +127,6 @@ class Toplevel (testing: Boolean) extends Module {
     }
     printf("cycle is 0, pc=%x (h%x ----------------- d%d)\n", curPC, curPC(14,0), curPC(14,0))
   } .elsewhen (cycle === 1.U) {
-    cycle := 3.U
     //flash value -> instruction register
     io.ebus_read := true.B
     // register for subsequent cycles
@@ -138,10 +137,24 @@ class Toplevel (testing: Boolean) extends Module {
     raw_addr := Cat(bsr(5,0), signals.Address)
     printf("cy is 1, flashval = %b sigAddr is %x\n", io.ebus_in, signals.Address)
     printf("cy is 1, bsr=%x mapped_addr is %x\n", bsr, mapped_addr)
+
+    when (mapped_addr > "h6000".U) {
+      //This is a flash/external address
+      cycle := 2.U
+    } .otherwise {
+      cycle := 3.U
+    }
   } .elsewhen (cycle === 2.U) {
-    //reserved for flash indf
+    //reserved for flash/external indf
+    cycle := 3.U
+    ebus_en_b := true.B
+    io.ebus_out := mapped_addr_reg
+    io.ebus_alatch := true.B
+    //preserve mapped_reg on next cycle
+    raw_addr := Cat(bsr(5,0), signals.Address)
   } .elsewhen (cycle === 3.U) {
     cycle := 4.U
+    io.ebus_read := true.B
     printf("cycle is 3, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
     printf("alu op is %d\n", signals.Operation)
     raw_addr := Cat(bsr(5,0), signals.Address)
@@ -246,6 +259,10 @@ class Toplevel (testing: Boolean) extends Module {
     } .elsewhen(mapped_addr_reg === "h1C0B".U)
     {
       bus_value := intcon
+    } .elsewhen(mapped_addr_reg >= "h2000".U)
+    {
+      //Flash read / external read
+      bus_value := io.ebus_in(7,0)
     } .otherwise {
       bus_value := 0.U
     }
@@ -306,6 +323,12 @@ class Toplevel (testing: Boolean) extends Module {
     } .elsewhen(mapped_addr_reg === "h1C0B".U)
     {
       intcon := bus_value
+    }  .elsewhen(mapped_addr_reg >= "h2000".U)
+    {
+      // External write
+      io.ebus_out := bus_value
+      ebus_en_b := true.B
+      io.ebus_write := true.B
     } .otherwise {
       //Nothing
     }

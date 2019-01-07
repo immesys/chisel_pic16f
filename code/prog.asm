@@ -508,6 +508,17 @@ faraway:
  movf A1 & 0x7F, w
  expect 45
 
+ ; test indf flash read
+flashinstr: movlw 0x78
+ clrf wreg
+ movlw high flashinstr
+ movwf fsr0h
+ bsf fsr0h, 7 ; must be 0x8yyy
+ movlw low flashinstr
+ movwf fsr0l
+ movf indf0, w
+ expect 0x78
+
  ; end tests
  pagesel endtests
  goto endtests & 0x7FF
