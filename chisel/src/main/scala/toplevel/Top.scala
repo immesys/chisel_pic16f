@@ -60,7 +60,7 @@ class Toplevel (testing: Boolean) extends Module {
 
   val bus_value = Wire(UInt(16.W))
   //For saving the address across cycles
-  val addr = Reg(UInt(16.W))
+  //val addr = Reg(UInt(16.W))
 
   //Memory mapping
   val raw_addr = Wire(UInt(16.W))
@@ -109,15 +109,15 @@ class Toplevel (testing: Boolean) extends Module {
 
   when (cycle === 0.U)
   {
-    raw_addr := Cat(1.U, pc.asUInt)
     val nextPC = pc.asUInt + 1.U
+    val curPC = pc.asUInt
     pc.pch := nextPC(14,8)
     pc.pcl := nextPC(7,0)
-    addr := raw_addr
-    io.ebus_out := mapped_addr
+
+    io.ebus_out := Cat(1.U, pc.asUInt)
     ebus_en_b := true.B
     io.ebus_alatch := true.B
-    printf("cycle is 0, pc=%x (h%x ----------------- d%d)\n", mapped_addr, mapped_addr(14,0), mapped_addr(14,0))
+    printf("cycle is 0, pc=%x (h%x ----------------- d%d)\n", curPC, curPC(14,0), curPC(14,0))
   } .elsewhen (cycle === 1.U) {
     //flash value -> instruction register
     io.ebus_read := true.B

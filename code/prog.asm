@@ -434,10 +434,17 @@ faraway:
  expect 94
 
  ; end tests
- pagesel $
- goto $ & 0x7FF
+ pagesel endtests
+ goto endtests & 0x7FF
 
  ; some utility functions
 org 0x1300
 retlw94:
   retlw 94
+
+
+
+
+org 0x1700
+endtests:
+  goto $ & 0x7FF

@@ -43,6 +43,8 @@ class ToplevelUnitTester(c: TopLevelTestWrapper) extends PeekPokeTester(c) {
 
   val flashmem = (new CompiledMem).CMem
 
+  var testsdone = 0
+
   def gstep(x:Int) = {
     for( a <- 1 to x){
       val addr = peek(tl.io.flash_addr)
@@ -59,6 +61,7 @@ class ToplevelUnitTester(c: TopLevelTestWrapper) extends PeekPokeTester(c) {
       var testreg = peekAt(tl.t.smem, 39)
       Console.println(s"a=$rega v=$valuereg e=$expectreg t=$testreg")
       if (testreg > 0) {
+        testsdone = testsdone + 1
         Console.println(s"PERFORMING TEST $expectreg == $valuereg")
         expect(valuereg == expectreg, s"expected ${expectreg} got ${valuereg}")
       }
@@ -68,5 +71,6 @@ class ToplevelUnitTester(c: TopLevelTestWrapper) extends PeekPokeTester(c) {
   }
   reset(10)
   gstep(5*700)
-  //expect(tl.io.w, 1)
+  Console.println("==================================")
+  Console.println(s"performed $testsdone expect tests")
 }
