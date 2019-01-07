@@ -113,12 +113,21 @@ class IDecode extends Module {
       io.signals.SetCarry := true.B
       io.signals.SetZero := true.B
   }
-  .elsewhen (io.instruction(13,8) === "b00_0001".U) { //CLRF + CLRW
-      //printf("decoded CLRF/W\n")
+  .elsewhen (io.instruction(13,7) === "b00_0001_1".U) { //CLRF
+      //printf("decoded CLRF\n")
       io.signals.Operation := aIdentity2
       io.signals.Literal2 := 0.U
       io.signals.Source2 := srcLiteral
       io.signals.SetZero := true.B
+      io.signals.DestF := true.B
+  }
+  .elsewhen (io.instruction(13,2) === "b00_0001_0000_00".U) { //CLRW
+      //printf("decoded CLRW\n")
+      io.signals.Operation := aIdentity2
+      io.signals.Literal2 := 0.U
+      io.signals.Source2 := srcLiteral
+      io.signals.SetZero := true.B
+      io.signals.DestF := false.B
   }
   .elsewhen (io.instruction(13,8) === "b00_1001".U) { //COMF
       //printf("decoded COMF\n")
@@ -278,11 +287,11 @@ class IDecode extends Module {
       io.signals.Source2 := srcLiteral
       io.signals.Literal2 := io.instruction(7,0)
   }
-  .elsewhen (io.instruction(13,8) === "b00_0001".U) { //MOVLB
+  .elsewhen (io.instruction(13,6) === "b00_0001_01".U) { //MOVLB
       //printf("decoded MOVLB\n")
       io.signals.Operation := aIdentity2
       io.signals.Source2 := srcLiteral
-      io.signals.Literal2 := io.instruction(7,0)
+      io.signals.Literal2 := io.instruction(5,0)
       io.signals.DestF := true.B
       io.signals.Address := bsr_addr
   }

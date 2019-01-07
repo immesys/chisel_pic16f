@@ -1,7 +1,7 @@
 package toplevel
 
 import chisel3._
-
+import chisel3.util._
 
 /* A combinatorial memory address rewriter
  */
@@ -13,8 +13,8 @@ class MemoryMapper extends Module {
     val fsr1 = Input(UInt(16.W))
   })
 
-  val bank_addr = io.raw_addr(7,0)
-  val bank_sel = io.raw_addr(15,8)
+  val bank_addr = io.raw_addr(6,0)
+  val bank_sel = io.raw_addr(11,7)
 
   when (io.raw_addr < "h2000".U) {
     when (bank_addr === "h00".U) { //indf0
@@ -23,11 +23,11 @@ class MemoryMapper extends Module {
       io.mapped_addr := io.fsr1
     } .elsewhen (bank_addr < "h0C".U) { //other core registers
       //Core registers
-      io.mapped_addr := "h1C00".U | bank_addr
+      io.mapped_addr := Cat("h1C".U , 0.U(1.W), bank_addr)
     } .elsewhen (bank_addr < "h70".U) {
       //Memory
-      //4.u is +16 (shared) -12 (core registers)
-      io.mapped_addr := (bank_sel * 80.U) + 4.U + bank_addr
+      //-16.u is +16 (shared) -32 (core registers + SFR)
+      io.mapped_addr := (bank_sel * 80.U) - 16.U + bank_addr
     } .otherwise {
       //Common registers
       io.mapped_addr := bank_addr - "h70".U

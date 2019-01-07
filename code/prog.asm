@@ -34,7 +34,7 @@ A: ds 1
 B: ds 1
 
 PSECT udata2,class=BANK1,space=1
-A1: ds1
+A1: ds 1
 
 PSECT comm,class=COMMON,space=1
 ValueReg: ds 1
@@ -448,7 +448,65 @@ faraway:
  expect 94
 
  ; test bank_sel
+ banksel A
+ movlw 5
+ movwf A
+ banksel A1
+ movlw 7
+ movwf A1 & 0x7F
+ clrf wreg
+ banksel A
+ movf A, w
+ expect 5
+ banksel A1
+ movf A1 & 0x7F, w
+ expect 7
 
+ ; test indf read
+ banksel A1
+ movlw 37
+ movwf A1 & 0x7F
+ clrf wreg
+ banksel A
+ movlw high A1
+ movwf fsr0h
+ movlw low A1
+ movwf fsr0l
+ movf indf0, w
+ expect 37
+
+ ; test indf write (fsr already set)
+ movlw 43
+ movwf indf0
+ clrf wreg
+ banksel A1
+ movf A1 & 0x7F, w
+ expect 43
+
+ ; clrf fsr0
+ clrf fsr0l
+ clrf fsr0h
+
+ ; test indf1 read
+ banksel A1
+ movlw 39
+ movwf A1 & 0x7F
+ clrf wreg
+ banksel A
+ movlw high A1
+ movwf fsr1h
+ movlw low A1
+ movwf fsr1l
+ movf indf1, w
+ expect 39
+
+ ; test indf write (fsr already set)
+ movlw 45
+ movwf indf1
+ clrf wreg
+ banksel A1
+ movf A1 & 0x7F, w
+ expect 45
 
  ; end tests
  pagesel endtests

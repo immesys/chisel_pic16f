@@ -135,15 +135,16 @@ class Toplevel (testing: Boolean) extends Module {
     // combinatorial for this cycle
     opdecode.io.instruction := io.ebus_in
     // send from idecode to addr mapping
-    raw_addr := signals.Address
+    raw_addr := Cat(bsr(5,0), signals.Address)
     printf("cy is 1, flashval = %b sigAddr is %x\n", io.ebus_in, signals.Address)
+    printf("cy is 1, bsr=%x mapped_addr is %x\n", bsr, mapped_addr)
   } .elsewhen (cycle === 2.U) {
     //reserved for flash indf
   } .elsewhen (cycle === 3.U) {
     cycle := 4.U
     printf("cycle is 3, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
     printf("alu op is %d\n", signals.Operation)
-    raw_addr := signals.Address
+    raw_addr := Cat(bsr(5,0), signals.Address)
     bus_in_sel := bus_sram
     alu_res_reg := alu_res
     status := alu_status_res.asUInt
@@ -155,7 +156,7 @@ class Toplevel (testing: Boolean) extends Module {
   } .elsewhen (cycle === 4.U)
   {
     cycle := 0.U
-    raw_addr := signals.Address
+    raw_addr := Cat(bsr(5,0), signals.Address)
     when (signals.WriteMem) {
       when (signals.DestF) {
         bus_in_sel := bus_alu
@@ -280,15 +281,19 @@ class Toplevel (testing: Boolean) extends Module {
     } .elsewhen(mapped_addr_reg === "h1C04".U)
     {
       fsr0.fsr0l := bus_value
+      changedFSR := 0.U
     } .elsewhen(mapped_addr_reg === "h1C05".U)
     {
       fsr0.fsr0h := bus_value
+      changedFSR := 0.U
     } .elsewhen(mapped_addr_reg === "h1C06".U)
     {
       fsr1.fsr1l := bus_value
+      changedFSR := 1.U
     } .elsewhen(mapped_addr_reg === "h1C07".U)
     {
       fsr1.fsr1h := bus_value
+      changedFSR := 1.U
     } .elsewhen(mapped_addr_reg === "h1C08".U)
     {
       bsr := bus_value
