@@ -410,12 +410,42 @@ class IDecode extends Module {
     }
     io.signals.SpecialINDF_ToW := true.B
   }
+  .elsewhen (io.instruction(13,3) === "b00_0000_0001_1".U) { //MOVWI NM
+    printf("decoded MOVWI NM\n")
+    io.signals.FSRNum := io.instruction(2)
+    io.signals.SpecialINDF := true.B
+    val idop = io.instruction(1,0)
+    when (idop === "b00".U) { //preincrement
+      io.signals.FSRPreAdd := 1.S
+      io.signals.FSRPostAdd := 1.S
+    }
+    .elsewhen (idop === "b01".U) { //predecrement
+      io.signals.FSRPreAdd := -1.S
+      io.signals.FSRPostAdd := -1.S
+    }
+    .elsewhen (idop === "b10".U) { //postincrement
+      io.signals.FSRPreAdd := 0.S
+      io.signals.FSRPostAdd := 1.S
+    }
+    .elsewhen (idop === "b11".U) { //postdecrement
+      io.signals.FSRPreAdd := 0.S
+      io.signals.FSRPostAdd := -1.S
+    }
+    io.signals.SpecialINDF_ToW := false.B
+  }
   .elsewhen (io.instruction(13,7) === "b11_1111_0".U) { //MOVIW K
     printf("decoded MOVIW K\n")
     io.signals.FSRNum := io.instruction(6)
     io.signals.SpecialINDF := true.B
     io.signals.FSRPreAdd := io.instruction(5,0).asSInt
     io.signals.SpecialINDF_ToW := true.B
+  }
+  .elsewhen (io.instruction(13,7) === "b11_1111_1".U) { //MOVWI K
+    printf("decoded MOVWI K\n")
+    io.signals.FSRNum := io.instruction(6)
+    io.signals.SpecialINDF := true.B
+    io.signals.FSRPreAdd := io.instruction(5,0).asSInt
+    io.signals.SpecialINDF_ToW := false.B
   }
     //-- TODO
     //ADDFSR

@@ -614,6 +614,66 @@ flashinstr: movlw 0x78
  moviw [1]FSR0
  expect 34
 
+ ; test movwi k
+ movlw 91
+ movwi [2]FSR0
+ banksel ud3_5
+ movf ud3_5 & 0x7F, w
+ expect 91
+
+ ; test moviw nm
+ moviw FSR0++
+ expect 33
+ movf fsr0l, w
+ expect low ud3_4
+ moviw ++FSR0
+ expect 91
+ movf fsr0l, w
+ expect low ud3_5
+
+ ; test moviw nm
+ moviw FSR0--
+ expect 91
+ movf fsr0l, w
+ expect low ud3_4
+ moviw --FSR0
+ expect 33
+ movf fsr0l, w
+ expect low ud3_3
+
+ nop ; test movwi nm
+ movlw low ud3_3
+ movwf fsr1l
+ movlw high ud3_3
+ movwf fsr1h
+ movlw 97
+ movwi FSR1++
+ clrf wreg
+ decf fsr1l, f
+ movf indf1, w
+ expect 97
+ incf fsr1l, f
+ nop ; test movwi part 2
+ clrf wreg
+ movf fsr1l, w
+ expect low ud3_4
+ movlw 98
+ movwi ++FSR1
+ movf fsr1l, w
+ expect low ud3_5
+ banksel ud3_5
+ movf ud3_5 & 0x7F, w
+ expect 98
+
+; test moviw with flash
+flashword2: movlw 27
+ movlw low flashword2 + 1
+ movwf fsr1l
+ movlw high flashword2
+ movwf fsr1h
+ moviw --FSR1
+ expect 27
+ 
  ; end tests
  pagesel endtests
  goto endtests & 0x7FF

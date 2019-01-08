@@ -71,7 +71,7 @@ class ToplevelUnitTester(c: TopLevelTestWrapper) extends PeekPokeTester(c) {
     }
   }
   reset(10)
-  gstep(5*700)
+  gstep(5*800)
   Console.println("==================================")
   Console.println(s"performed $testsdone expect tests")
 }

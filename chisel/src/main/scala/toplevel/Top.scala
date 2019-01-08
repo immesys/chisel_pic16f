@@ -139,6 +139,7 @@ class Toplevel (testing: Boolean) extends Module {
     printf("cy is 1, bsr=%x mapped_addr is %x\n", bsr, mapped_addr)
 
     when (!signals.SpecialINDF) {
+      printf("cy3 raw addr is %x\n", Cat(bsr(5,0), signals.Address))
       raw_addr := Cat(bsr(5,0), signals.Address)
     } .otherwise {
       val indf_addr = Wire(SInt(17.W))
@@ -159,6 +160,7 @@ class Toplevel (testing: Boolean) extends Module {
       cycle := 3.U
     }
   } .elsewhen (cycle === 2.U) {
+    printf("EXECUTING CYCLE 2\n")
     //reserved for flash/external indf
     cycle := 3.U
     ebus_en_b := true.B
@@ -167,15 +169,15 @@ class Toplevel (testing: Boolean) extends Module {
 
     mapped_addr_reg := mapped_addr_reg
   } .elsewhen (cycle === 3.U) {
+
     cycle := 4.U
     io.ebus_read := true.B
     printf("cycle is 3, bus_value is %x alu2 is %x alu_res is %x\n", bus_value, alu2, alu_res)
-    printf("alu op is %d\n", signals.Operation)
-
+    printf("cycle is 3, mapped_addr_reg is %x\n", mapped_addr_reg)
     bus_in_sel := bus_sram
     alu_res_reg := alu_res
     status := alu_status_res.asUInt
-
+    mapped_addr_reg := mapped_addr_reg
     //For testing, write ebus from smem here
     if (testing) {
       io.ebus_out := smem.read(mapped_addr_reg)
@@ -183,7 +185,6 @@ class Toplevel (testing: Boolean) extends Module {
   } .elsewhen (cycle === 4.U)
   {
     cycle := 0.U
-  //  raw_addr := Cat(bsr(5,0), signals.Address)
     when (signals.WriteMem) {
       when (signals.SpecialINDF) {
         when (signals.SpecialINDF_ToW) {
@@ -237,6 +238,7 @@ class Toplevel (testing: Boolean) extends Module {
     } .elsewhen (signals.SetPCAbs) {
       pc.pcl := signals.PCAbsAddr(7,0)
       pc.pch := Cat(pclath(6, 3), signals.PCAbsAddr(10,8))
+      printf("SETPCABS pclath=%x, pch=%x pcl=%x\n", pclath, pc.pch, pc.pcl)
     } .elsewhen (signals.AddPC ||
                 (signals.AddPCZero && alu_res_reg === 0.U) ||
                 (signals.AddPCNonzero && alu_res_reg =/= 0.U)) {
@@ -318,6 +320,7 @@ class Toplevel (testing: Boolean) extends Module {
 
   when(bus_out_sel === bus_sram && bus_write)
   {
+    printf("write back map is %x v=%x\n", mapped_addr_reg, bus_value)
     when(mapped_addr_reg < "h1000".U)
     {
       printf("writing to memory addr=%x val=%x\n", mapped_addr_reg(11,0), bus_value)
@@ -363,6 +366,7 @@ class Toplevel (testing: Boolean) extends Module {
       wreg := bus_value
     } .elsewhen(mapped_addr_reg === "h1C0A".U)
     {
+      printf("writing to pclath: %x\n", pclath)
       pclath := bus_value
     } .elsewhen(mapped_addr_reg === "h1C0B".U)
     {
