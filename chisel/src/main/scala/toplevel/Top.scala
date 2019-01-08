@@ -155,6 +155,7 @@ class Toplevel (testing: Boolean) extends Module {
 
     when (mapped_addr > "h6000".U) {
       //This is a flash/external address
+      printf("flash addr found, triggering extra cycle\n")
       cycle := 2.U
     } .otherwise {
       cycle := 3.U

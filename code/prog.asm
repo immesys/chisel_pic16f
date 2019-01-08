@@ -671,9 +671,10 @@ flashword2: movlw 27
  movwf fsr1l
  movlw high flashword2
  movwf fsr1h
+ bsf fsr1h, 7
  moviw --FSR1
  expect 27
- 
+
  ; end tests
  pagesel endtests
  goto endtests & 0x7FF
